@@ -1,0 +1,10 @@
+CompileFlags:
+  Add:
+    - --target=riscv64-unknown-elf  # 指定 RISC-V 目标架构
+    - -march=rv64gc
+    - -mabi=lp64d
+    - -ffreestanding
+    - -I${workspaceFolder}/kernel/include  
+    - -I/Users/gyy/Courses/Operating_System/whu-oslab-skeleton/kernel/include
+  Remove:
+    - -fno-builtin  # 避免 clangd 误报
