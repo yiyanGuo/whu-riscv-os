@@ -72,6 +72,10 @@ SRCS = \
 	kernel/driver/console.c \
 	kernel/mm/kalloc.c \
 	kernel/mm/vm.c \
+	kernel/boot/start.c \
+	kernel/trap/kernelvec.S \
+	kernel/trap/trap.c \
+	kernel/trap/timervec.S
 #   ^ Lab1 基础文件，后续实验在此追加
 
 KERNEL  = kernel.elf

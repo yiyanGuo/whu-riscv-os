@@ -49,6 +49,11 @@ static inline void w_mstatus(uint64 x) {
 static inline void w_mepc(uint64 x) {
   asm volatile("csrw mepc, %0" : : "r"(x));
 }
+static inline uint64 r_mepc() {
+  uint64 x = 0;
+  asm volatile("csrr  %0, mepc" :: "r"(x));
+  return x;
+}
 
 /* 监管态状态寄存器 sstatus */
 #define SSTATUS_SPP (1L << 8)  /* SPP: 上一特权级（0=用户态，1=内核态）*/
@@ -194,6 +199,9 @@ static inline uint64 r_sp() {
   return x;
 }
 
+static inline void w_mscratch(uint64 x) { asm volatile("csrw mscratch, %0" :: "r"(x)); }
+static inline void w_pmpaddr0(uint64 x) { asm volatile("csrw pmpaddr0, %0" :: "r"(x)); }
+static inline void w_pmpcfg0(uint64 x) { asm volatile("csrw pmpcfg0, %0" :: "r"(x)); }
 /* TLB 刷新指令：修改页表后必须执行，否则CPU会使用过时的翻译缓存 */
 static inline void sfence_vma() { asm volatile("sfence.vma zero, zero"); }
 

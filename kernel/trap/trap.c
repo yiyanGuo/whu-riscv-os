@@ -29,6 +29,12 @@ void trapinithart(void) {
    *   将 sys_trap_vector 的地址写入 stvec 寄存器。
    *   使用 w_stvec() 函数（已在 riscv.h 中定义）。
    * ================================================================ */
+  w_stvec((uint64)sys_trap_vector);
+
+  *(uint32 *)(PLIC + UART0_IRQ * 4) = 1;
+  *(uint8 *)(UART0 + 1) = 1;
+  *(uint32 *)PLIC_SENABLE(r_tp()) = (1 << UART0_IRQ);
+  *(uint32 *)PLIC_SPRIORITY(r_tp()) = 0;
 }
 
 /* ================================================================
@@ -45,6 +51,7 @@ void trapinithart(void) {
  *     5  → S-Mode 时钟中断（如果直接委托到 S-Mode）
  *     9  → 外部中断（UART 键盘输入等）
  * ================================================================ */
+int times = 0;
 void sys_trap_handler(void) {
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
@@ -71,11 +78,40 @@ void sys_trap_handler(void) {
        *   2. 打印 "Tick!\n"（验收用）
        *   3. （Lab5完成后追加）若有运行中的进程，调用 yield() 切换
        * ================================================================ */
+      w_sip(r_sip() & ~2);
+      times++;
+      if(times == 10) {
+        printf("Tick\n");
+        times = 0;
+      }
       break;
 
     case 9:
-      /* 外部中断（如 UART 键盘）：Lab7 之前可暂不处理 */
+    {
+
+      int hartid = r_tp();
+      int irq = *(uint32 *)PLIC_SCLAIM(hartid); // 读 SCLAIM 寄存器获取设备号
+
+      if (irq == UART0_IRQ)
+      {
+        while ((*(uint8 *)(UART0 + 5) & 1) != 0) // 读取 LSR 寄存器判断是否有数据
+        {
+          char c = *(uint8 *)(UART0 + 0); // 读取 RHR 寄存器拿到字符
+          *(uint8 *)(UART0 + 0) = c; // 写入 THR 寄存器回显
+        }
+      }
+      else if (irq != 0)
+      {
+        printf("Unexpected interrupt irq=%d\n", irq);
+      }
+
+      if (irq != 0)
+      {
+        *(uint32 *)PLIC_SCLAIM(hartid) = irq; // 将刚刚的设备号写回 SCLAIM
+      }
       break;
+    }
+    break;
 
     default:
       printf("sys_trap_handler: unknown interrupt irq=%ld\n", irq);
@@ -127,7 +163,7 @@ void usertrap(void) {
      * ================================================================ */
 
     /* 分发给系统调用处理函数 */
-    syscall();
+    // syscall();
 
   } else {
     /* 用户态发生异常（如非法内存访问），直接终止该进程 */
@@ -136,3 +172,4 @@ void usertrap(void) {
     panic("usertrap");
   }
 }
+

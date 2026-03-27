@@ -68,8 +68,7 @@ void kfree(void *pa) {
   struct free_node *r;
 
   /* 安全检查（已提供，无需修改）*/
-  if (((uint64)pa % PGSIZE) != 0 || (char *)pa < end_address ||
-      (uint64)pa >= PHYSTOP) {
+  if (((uint64)pa % PGSIZE) != 0 || (char *)pa < end_address || (uint64)pa >= PHYSTOP) {
     panic("kfree: invalid address");
   }
 
@@ -81,11 +80,11 @@ void kfree(void *pa) {
    *   实现头插法，将 pa 插入 free_mem_list 链表头。
    *   将 pa 强转为 struct free_node*，使其 next 指向原链表头，再更新链表头。
    * ================================================================ */
-  
+
   r = (struct free_node *)pa;
   r->next = free_mem_list;
   free_mem_list = r;
-  memset((char *)r, 0, PGSIZE);
+  // memset((char *)r, 0, PGSIZE);
 }
 
 /* ================================================================
@@ -111,6 +110,7 @@ void *kalloc(void) {
   r = free_mem_list;
   if (r) {
     free_mem_list = r->next;
+    memset((char *)r, 0, PGSIZE);
   }
-  return r; /* 删除这行，替换为上面的逻辑 */
+  return r;
 }

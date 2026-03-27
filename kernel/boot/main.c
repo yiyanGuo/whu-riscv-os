@@ -19,7 +19,7 @@
  * Lab5 完成后，增加 procinit(), scheduler()。
  * ============================================================= */
 #include "defs.h"
-
+#include "riscv.h"
 /* 声明在 uart.c 中实现的函数（Lab2完成后改用 defs.h 统一管理）*/
 // extern void uart_puts(char *s);
 
@@ -33,14 +33,15 @@
  * ================================================================ */
 void start_main() {
   /* 在这里写你的代码 */
-  clear_screen(); 
-  printf("Welcome to WHU OS Lab!\n");
-  // printf("Kernel loaded at address: %p\n", 0x80000000); 
-  // printf("Signed integer test: %d\n", -123);
-  // printf("String test: %s\n", "Hello, Variadic Parameters!");
+  // clear_screen();
+  // printf("in main\n");
   kinit();
   kvmininit();
   kvminithart();
+  trapinithart();
+  intr_on();
+  clear_screen();
+  printf("Welcome to WHU OS Lab!\n");
   while (1)
     ; /* 内核死循环，不要删除 */
 }

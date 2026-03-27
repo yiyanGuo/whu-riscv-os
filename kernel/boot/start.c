@@ -18,7 +18,7 @@
 
 /* 时钟中断处理代码的入口（汇编实现），在 M-Mode 触发时调用 */
 extern char timervec[];
-
+extern void start_main(void);
 /* 每个 CPU 核心的临时存储区，timervec 汇编代码需要用到 */
 uint64 timer_scratch[NCPU][5];
 
@@ -49,6 +49,7 @@ void timerinit(void) {
    * ================================================================ */
 
   /* 初始化 timer_scratch 暂存区（timervec 汇编代码会用到这里存储中间值）*/
+  *(uint64*)CLINT_MTIMECMP(hartid) = *(uint64*)CLINT_MTIME + interval;
   uint64 *scratch = &timer_scratch[hartid][0];
   scratch[3] = CLINT_MTIMECMP(hartid); /* mtimecmp 寄存器地址 */
   scratch[4] = interval;               /* 时钟间隔值 */
@@ -59,18 +60,22 @@ void timerinit(void) {
    *   设置 M-Mode 陷阱向量，指向 timervec 汇编入口：
    *     w_mtvec((uint64)timervec);
    * ================================================================ */
+  w_mtvec((uint64)timervec);
 
   /* ================================================================
    * TODO [Lab4-任务4-步骤3]：
    *   开启 M-Mode 时钟中断使能位：
    *     w_mie(r_mie() | MIE_MTIE);
    * ================================================================ */
+  w_mie(r_mie() | MIE_MTIE | MIE_MEIE);
 
   /* ================================================================
    * TODO [Lab4-任务4-步骤4]：
    *   开启 M-Mode 全局中断使能（mstatus.MIE）：
    *     w_mstatus(r_mstatus() | MSTATUS_MIE);
    * ================================================================ */
+  w_mstatus(r_mstatus() | MSTATUS_MIE);
+
 }
 
 /* ================================================================
@@ -82,6 +87,7 @@ void timerinit(void) {
  *   3. 初始化定时器
  *   4. 用 mret 指令降权跳入 S-Mode 的 start_main()
  * ================================================================ */
+
 void start(void) {
   /* 将 "上一特权级" 设为 S-Mode，这样执行 mret 时会进入 S-Mode */
   uint64 x = r_mstatus();
@@ -99,15 +105,21 @@ void start(void) {
   /* 在 S-Mode 中开启时钟中断和软件中断的使能位 */
   w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
 
+  asm volatile("csrw pmpaddr0, %0" : : "r"(0x3fffffffffffffull));
+  asm volatile("csrw pmpcfg0, %0" : : "r"(0xf));
+
   /* 初始化 M-Mode 定时器 */
   timerinit();
+
 
   /* 将当前 CPU 核心编号（hartid）保存在 tp 寄存器中 */
   /* （mycpu() 函数会通过读取 tp 来知道当前是哪个核心）*/
   w_tp(r_mhartid());
 
   /* 执行 mret：降权到 S-Mode，跳转到 mepc 所指的 start_main() */
+
   asm volatile("mret");
 
   /* 不会到达这里 */
 }
+

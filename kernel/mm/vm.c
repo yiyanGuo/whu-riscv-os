@@ -85,8 +85,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
        *   将新页表的物理地址写入当前 PTE，并设置 PTE_V（有效位）。
        *   使用 PA2PTE 宏将物理地址转为PTE格式，然后按位或上 PTE_V。
        * ================================================================ */
-      pte_t new_pte = PA2PTE((uint64)pagetable) | PTE_V;
-      *pte = new_pte;
+      *pte = PA2PTE((uint64)pagetable) | PTE_V;
     }
   }
 
@@ -163,12 +162,14 @@ void kvmininit(void) {
   for (int i = 0; i < PGSIZE / 8; i++)
     ((uint64 *)kernel_pagetable)[i] = 0;
 
+
   /* ================================================================
    * TODO [Lab3-任务4-步骤1]：
    *   映射 UART0 串口设备（MMIO区域），使内核可以访问串口寄存器。
    *   地址：UART0（见 memlayout.h），大小：PGSIZE，权限：可读+可写。
    * ================================================================ */
   mappages(kernel_pagetable, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+  mappages(kernel_pagetable, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
   /* ================================================================
    * TODO [Lab3-任务4-步骤2]：
    *   映射内核代码段：从 KERNBASE 到 etext。
@@ -180,7 +181,9 @@ void kvmininit(void) {
    *   映射内核数据段和剩余可用物理内存：从 etext 到 PHYSTOP。
    *   权限：可读+可写（数据段需要写权限，但不能有可执行权限）。
    * ================================================================ */
-   mappages(kernel_pagetable, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+  //内核会维护一个包含所有物理页的页表而且虚拟地址等于物理地址，方便访问
+  //然后用户进程的页表项指向的页表也会在内核页表中有一个页表项
+   mappages(kernel_pagetable, PGROUNDUP((uint64)etext), PGROUNDUP((uint64)etext), PHYSTOP - PGROUNDUP((uint64)etext), PTE_R | PTE_W | PTE_X);
 }
 
 /* ================================================================
@@ -194,14 +197,6 @@ void kvmininit(void) {
  *       导致系统崩溃（此时无任何错误提示，GDB 单步调试是唯一出路）。
  * ================================================================ */
 void kvminithart(void) {
-  /* ================================================================
-   * TODO [Lab3-任务4-步骤4]：
-   *   1. 将根页表地址写入 satp 寄存器（开启Sv39分页）。
-   *      使用 MAKE_SATP 宏将根页表物理地址转为 satp 的格式。
-   *   2. 刷新 TLB（清空CPU中缓存的旧地址翻译结果）：sfence_vma()。
-   *   注意：这两步顺序不能颠倒！
-   * ================================================================ */
-  //  kvmininit();
-   w_satp(MAKE_SATP(kernel_pagetable));
-   sfence_vma();
+  w_satp(MAKE_SATP(kernel_pagetable));
+  sfence_vma();
 }

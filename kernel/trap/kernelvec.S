@@ -41,9 +41,30 @@ sys_trap_vector:
     #   t3 在 216(sp)，t4 在 224(sp)，t5 在 232(sp)，t6 在 240(sp)
     #   注意：sp 自身（8(sp)）跳过，稍后单独处理
     # =============================================================
-    # sd s0,  56(sp)
-    # sd s1,  64(sp)
-    # ... 补充完整
+    sd s0,  56(sp)
+    sd s1,  64(sp)
+    sd a0,  72(sp)
+    sd a1,  80(sp)
+    sd a2,  88(sp)
+    sd a3,  96(sp)
+    sd a4,  104(sp)
+    sd a5,  112(sp)
+    sd a6,  120(sp)
+    sd a7,  128(sp)
+    sd s2,  136(sp)
+    sd s3,  144(sp)
+    sd s4,  152(sp)
+    sd s5,  160(sp)
+    sd s6,  168(sp)
+    sd s7,  176(sp)
+    sd s8,  184(sp)
+    sd s9,  192(sp)
+    sd s10, 200(sp)
+    sd s11, 208(sp)
+    sd t3,  216(sp)
+    sd t4,  224(sp)
+    sd t5,  232(sp)
+    sd t6,  240(sp)
 
     # =============================================================
     # 步骤2：保存 sp。注意：此时 sp 已经被减去了 256，
@@ -76,6 +97,31 @@ sys_trap_vector:
     #   如果使用 ld sp, 8(sp) 来恢复 sp，则删除下面这行 addi；
     #   如果不用 ld 恢复 sp，则保留 addi 来恢到栈顶。
     # =============================================================
+
+    ld s0,  56(sp)
+    ld s1,  64(sp)
+    ld a0,  72(sp)
+    ld a1,  80(sp)
+    ld a2,  88(sp)
+    ld a3,  96(sp)
+    ld a4,  104(sp)
+    ld a5,  112(sp)
+    ld a6,  120(sp)
+    ld a7,  128(sp)
+    ld s2,  136(sp)
+    ld s3,  144(sp)
+    ld s4,  152(sp)
+    ld s5,  160(sp)
+    ld s6,  168(sp)
+    ld s7,  176(sp)
+    ld s8,  184(sp)
+    ld s9,  192(sp)
+    ld s10, 200(sp)
+    ld s11, 208(sp)
+    ld t3,  216(sp)
+    ld t4,  224(sp)
+    ld t5,  232(sp)
+    ld t6,  240(sp)
 
     addi sp, sp, 256   # 如果不用最后的 ld sp 恢复，用这行代替
 
