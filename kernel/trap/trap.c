@@ -100,10 +100,6 @@ void sys_trap_handler(void) {
           *(uint8 *)(UART0 + 0) = c; // 写入 THR 寄存器回显
         }
       }
-      else if (irq != 0)
-      {
-        printf("Unexpected interrupt irq=%d\n", irq);
-      }
 
       if (irq != 0)
       {
