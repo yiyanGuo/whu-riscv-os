@@ -8,6 +8,7 @@
 #ifndef PROC_H
 #define PROC_H
 
+#include "param.h"
 #include "types.h"
 
 /* ================================================================

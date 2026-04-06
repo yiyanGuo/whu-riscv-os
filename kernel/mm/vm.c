@@ -31,6 +31,13 @@ int memset(char *sa, char val, uint64 size) {
   }
   return 0;
 }
+
+int memmove(char *dest, char *src, uint64 size) {
+  for(int i = 0; i < size; i++) {
+    dest[i] = src[i];
+  }
+  return 0;
+}
 /* ================================================================
  * walk — 在三级页表中查找虚拟地址 va 对应的最终 PTE 指针
  *
@@ -183,7 +190,7 @@ void kvmininit(void) {
    * ================================================================ */
   //内核会维护一个包含所有物理页的页表而且虚拟地址等于物理地址，方便访问
   //然后用户进程的页表项指向的页表也会在内核页表中有一个页表项
-   mappages(kernel_pagetable, PGROUNDUP((uint64)etext), PGROUNDUP((uint64)etext), PHYSTOP - PGROUNDUP((uint64)etext), PTE_R | PTE_W | PTE_X);
+   mappages(kernel_pagetable, PGROUNDUP((uint64)etext), PGROUNDUP((uint64)etext), PHYSTOP - PGROUNDUP((uint64)etext), PTE_R | PTE_W);
 }
 
 /* ================================================================
@@ -199,4 +206,16 @@ void kvmininit(void) {
 void kvminithart(void) {
   w_satp(MAKE_SATP(kernel_pagetable));
   sfence_vma();
+}
+
+//创建用户进程页表
+pagetable_t
+uvmcreate()
+{
+  pagetable_t pagetable;
+  pagetable = (pagetable_t) kalloc();
+  if(pagetable == 0)
+    return 0;
+  memset((char*)pagetable, 0, PGSIZE);
+  return pagetable;
 }

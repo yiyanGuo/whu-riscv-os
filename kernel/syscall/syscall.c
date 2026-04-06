@@ -38,7 +38,7 @@
  *   后续可按需添加更多系统调用。
  * ================================================================ */
 static uint64 (*syscalls[20])(void) = {
-    /* [SYS_getpid] = sys_getpid, */ /* <-- 取消注释并添加这行 */
+    [SYS_getpid] = sys_getpid,
 };
 
 /* ================================================================
@@ -49,7 +49,6 @@ void syscall(void) {
 
   /* 从陷阱帧读取系统调用号（用户在 a7 寄存器中填入的值）*/
   int num = p->trapframe->a7;
-
   /* ================================================================
    * TODO [Lab6-任务3-步骤2]：
    *   1. 检查 num 是否在合法范围内（1 <= num < NELEM(syscalls)），
@@ -58,4 +57,10 @@ void syscall(void) {
    *      将返回值存入 p->trapframe->a0（用户程序会从 a0 读取返回值）。
    *   3. 若非法，打印错误并将 p->trapframe->a0 = -1（返回错误码）。
    * ================================================================ */
+  if (num > 0 && num < NELEM(syscalls) && syscalls[num] != 0) {
+    p->trapframe->a0 = syscalls[num]();
+  } else {
+    printf("syscall: unknown num %d\n", num);
+    p->trapframe->a0 = (uint64)-1;
+  }
 }

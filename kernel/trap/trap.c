@@ -11,11 +11,14 @@
 #include "defs.h"
 #include "memlayout.h"
 #include "param.h"
+#include "proc.h"
 #include "riscv.h"
 #include "types.h"
 
 /* 声明 sys_trap_vector 汇编入口（在 kernelvec.S 中定义）*/
 extern char sys_trap_vector[];
+extern char trampoline[];
+extern char uservec[];
 
 /* ================================================================
  * trapinithart — 设置 S-Mode 陷阱向量
@@ -52,6 +55,20 @@ void trapinithart(void) {
  *     9  → 外部中断（UART 键盘输入等）
  * ================================================================ */
 int times = 0;
+
+static void handle_timer_interrupt(void) {
+  w_sip(r_sip() & ~2);
+  times++;
+  if (times == 10) {
+    printf("Tick\n");
+    if (myproc() != 0)
+      printf("proc: %d\n", myproc()->pid);
+    times = 0;
+    if (myproc() != 0 && myproc()->status == TASK_RUNNING)
+      yield();
+  }
+}
+
 void sys_trap_handler(void) {
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
@@ -74,40 +91,33 @@ void sys_trap_handler(void) {
        *   S-Mode 软件中断（由 M-Mode timervec 触发的时钟信号）。
        *
        *   处理步骤：
-       *   1. 清除 sip 中的 SSIP 位（否则中断会持续触发）：接口为 w_sip(r_sip() & ~2)
+       *   1. 清除 sip 中的 SSIP 位（否则中断会持续触发）：接口为 w_sip(r_sip()
+       * & ~2)
        *   2. 打印 "Tick!\n"（验收用）
        *   3. （Lab5完成后追加）若有运行中的进程，调用 yield() 切换
        * ================================================================ */
-      w_sip(r_sip() & ~2);
-      times++;
-      if(times == 10) {
-        printf("Tick\n");
-        times = 0;
-      }
+      handle_timer_interrupt();
       break;
 
-    case 9:
-    {
+    case 9: {
 
       int hartid = r_tp();
       int irq = *(uint32 *)PLIC_SCLAIM(hartid); // 读 SCLAIM 寄存器获取设备号
 
-      if (irq == UART0_IRQ)
-      {
-        while ((*(uint8 *)(UART0 + 5) & 1) != 0) // 读取 LSR 寄存器判断是否有数据
+      if (irq == UART0_IRQ) {
+        while ((*(uint8 *)(UART0 + 5) & 1) !=
+               0) // 读取 LSR 寄存器判断是否有数据
         {
           char c = *(uint8 *)(UART0 + 0); // 读取 RHR 寄存器拿到字符
-          *(uint8 *)(UART0 + 0) = c; // 写入 THR 寄存器回显
+          *(uint8 *)(UART0 + 0) = c;      // 写入 THR 寄存器回显
         }
       }
 
-      if (irq != 0)
-      {
+      if (irq != 0) {
         *(uint32 *)PLIC_SCLAIM(hartid) = irq; // 将刚刚的设备号写回 SCLAIM
       }
       break;
-    }
-    break;
+    } break;
 
     default:
       printf("sys_trap_handler: unknown interrupt irq=%ld\n", irq);
@@ -140,10 +150,14 @@ void sys_trap_handler(void) {
  *   - 只处理 scause == 8（来自 U-Mode 的 ecall）
  * ================================================================ */
 void usertrap(void) {
+  struct proc *p = myproc();
+
   /* 立即切换到内核态陷阱向量（防止处理用户陷阱时再发生用户态中断）*/
   w_stvec((uint64)sys_trap_vector);
+  // printf("in usertrap\n");
 
   uint64 cause = r_scause();
+  p->trapframe->epc = r_sepc();
 
   if (cause == 8) {
     /* 来自 U-Mode 的 ecall（系统调用）*/
@@ -158,8 +172,21 @@ void usertrap(void) {
      *   如不执行此步，返回后用户态会无限重复执行 ecall！
      * ================================================================ */
 
+    p->trapframe->epc += 4;
+
     /* 分发给系统调用处理函数 */
-    // syscall();
+    printf("handle syscall\n");
+    syscall();
+
+  } else if (cause & 0x8000000000000000L) {
+    uint64 irq = cause & 0xff;
+
+    if (irq == 1) {
+      handle_timer_interrupt();
+    } else {
+      printf("usertrap: unexpected interrupt irq=%ld\n", irq);
+      panic("usertrap");
+    }
 
   } else {
     /* 用户态发生异常（如非法内存访问），直接终止该进程 */
@@ -167,5 +194,53 @@ void usertrap(void) {
     /* 理想情况下应该 exit(-1) 杀死该进程，暂不实现 */
     panic("usertrap");
   }
+
+  usertrapret();
 }
 
+/* ================================================================
+ * usertrapret — 从内核态返回用户态
+ *
+ * 作用：
+ *   1. 设置下一次用户态 trap 的入口
+ *   2. 在 trapframe 中写入下次陷入内核时需要的信息
+ *   3. 设置 sepc / sstatus，准备执行 sret
+ *   4. 跳转到 trampoline 中的 userret，真正恢复用户寄存器并返回 U-Mode
+ * ================================================================ */
+void usertrapret(void) {
+  struct proc *p = myproc();
+  uint64 trampoline_userret;
+  uint64 satp;
+  uint64 x;
+
+  extern char userret[];
+
+  /* 返回用户态前，应关闭中断，避免中途被打断 */
+  intr_off();
+
+  /* 下一次从用户态陷入时，要先进入 trampoline 的 uservec */
+  w_stvec(TRAMPOLINE + (uservec - trampoline));
+
+  /* 填写 trapframe 中“下次用户态 trap 进入内核”所需的信息 */
+  p->trapframe->kernel_satp = r_satp();
+  p->trapframe->kernel_sp = p->kstack + PGSIZE;
+  p->trapframe->kernel_trap = (uint64)usertrap;
+  p->trapframe->kernel_hartid = r_tp();
+
+  /* 用户态返回后的 PC */
+  w_sepc(p->trapframe->epc);
+
+  /* 设置 sstatus：
+   *   SPP = 0，表示 sret 后回到 U-Mode
+   *   SPIE = 1，表示回到用户态后开中断
+   */
+  x = r_sstatus();
+  x &= ~SSTATUS_SPP;
+  x |= SSTATUS_SPIE;
+  w_sstatus(x);
+
+  /* 切换到用户页表并进入 trampoline 的 userret */
+  satp = MAKE_SATP(p->pagetable);
+  trampoline_userret = TRAMPOLINE + (userret - trampoline);
+  ((void (*)(uint64))trampoline_userret)(satp);
+}

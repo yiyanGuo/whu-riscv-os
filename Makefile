@@ -75,7 +75,13 @@ SRCS = \
 	kernel/boot/start.c \
 	kernel/trap/kernelvec.S \
 	kernel/trap/trap.c \
-	kernel/trap/timervec.S
+	kernel/trap/timervec.S \
+	kernel/proc/proc.c \
+	kernel/proc/swtch.S \
+	kernel/trap/trampoline.S \
+	kernel/syscall/syscall.c \
+	kernel/syscall/sysproc.c \
+	user/proczero.c
 #   ^ Lab1 基础文件，后续实验在此追加
 
 KERNEL  = kernel.elf

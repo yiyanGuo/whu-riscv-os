@@ -42,6 +42,9 @@ void start_main() {
   intr_on();
   clear_screen();
   printf("Welcome to WHU OS Lab!\n");
+  procinit();
+  userinit();
+  scheduler();
   while (1)
     ; /* 内核死循环，不要删除 */
 }

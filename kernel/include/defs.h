@@ -38,7 +38,7 @@ void kinit(void);
 void *kalloc(void);
 void kfree(void *pa);
 int memset(char *sa, char val, uint64 size);
-
+int memmove(char *dest, char *src, uint64 size);
 /* ======================================================
  * Lab3 新增：虚拟内存 / 页表
  * 文件：kernel/mm/vm.c
@@ -49,6 +49,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc);
 int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
              int perm);
 uint64 walkaddr(pagetable_t pagetable, uint64 va);
+pagetable_t uvmcreate(void);
 
 /* ======================================================
  * Lab4 新增：启动初始化
@@ -79,6 +80,7 @@ void yield(void);
 void sched(void);
 void sleep(void *chan);
 void wakeup(void *chan);
+int userinit(void);
 
 /* ======================================================
  * Lab5 新增：上下文切换汇编

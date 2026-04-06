@@ -29,6 +29,8 @@
 
 /* ======== CSR 寄存器读写宏（Lab3-6 使用）======== */
 
+#ifndef __ASSEMBLER__
+
 /* 机器态状态寄存器 mstatus */
 #define MSTATUS_MPP_MASK (3L << 11) /* MPP字段掩码 */
 #define MSTATUS_MPP_M (3L << 11)    /* MPP=11 表示上一特权级是Machine */
@@ -212,5 +214,7 @@ static inline int intr_get() {
   uint64 x = r_sstatus();
   return (x & SSTATUS_SIE) != 0;
 }
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* RISCV_H */

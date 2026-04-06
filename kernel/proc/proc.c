@@ -21,6 +21,9 @@ struct cpu cpus[NCPU];
 /* 进程 ID 计数器（每次 allocpid 返回后递增）*/
 static int nextpid = 1;
 
+//第一个用户进程
+struct proc *initproc;
+
 /* ================================================================
  * mycpu — 获取当前 CPU 核心的 cpu 结构指针
  *
@@ -51,6 +54,10 @@ void procinit(void) {
    * TODO [Lab5-任务1-步骤1]：
    *   遍历 proc[] 数组，将每个进程的 status 置为 TASK_FREE。
    * ================================================================ */
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    p->status = TASK_FREE;
+  }
 }
 
 /* ================================================================
@@ -82,7 +89,12 @@ found:
    *   2. 分配 trapframe 页：调用 kalloc()；若失败则将状态恢复为 TASK_FREE 并返回0
    *   3. 将进程状态设为 TASK_ALLOCATED
    * ================================================================ */
-
+  p->pid = allocpid();
+  if((p->trapframe = kalloc()) == 0) {
+    p->status = TASK_FREE;
+    return 0;
+  }
+  p->status = TASK_ALLOCATED;
   return p;
 }
 
@@ -121,6 +133,11 @@ void scheduler(void) {
        *   4. 调用 swtch 切换到 p 的上下文：swtch(&c->context, &p->context)
        *   5. swtch 返回后（进程放弃了CPU），清零 c->proc
        * ================================================================ */
+      if(p->status != TASK_READY) continue;
+      p->status = TASK_RUNNING;
+      c->proc = p;
+      swtch(&c->context, &p->context);
+      c->proc = 0;      
     }
   }
 }
@@ -132,7 +149,7 @@ void scheduler(void) {
  * ================================================================ */
 void yield(void) {
   struct proc *p = myproc();
-
+  struct cpu *c = mycpu();
   /* ================================================================
    * TODO [Lab5-任务4]：
    *   1. 将进程状态改为 TASK_READY
@@ -140,4 +157,65 @@ void yield(void) {
    *
    *   思考：为什么是 "进程 → 调度器" 而不是 "进程A → 进程B" 直接切换？
    * ================================================================ */
+  p->status = TASK_READY;
+  swtch(&p->context, &c->context);
+}
+
+// A fork child's very first scheduling by scheduler()
+// will swtch to forkret.
+void
+forkret(void)
+{
+  usertrapret();
+
+  while(1);
+}
+
+extern pagetable_t kernel_pagetable;
+extern char trampoline[];
+
+static uint8 initcode[] = {
+    0x73, 0x00, 0x00, 0x00,   // ecall
+    0x73, 0x00, 0x00, 0x00,   // ecall
+    0x6f, 0x00, 0x00, 0x00,   // j .
+};
+
+int userinit(){
+  char *mem;
+  pte_t *pte;
+
+  if((initproc = allocproc()) == 0) return -1;
+
+  if((initproc->kstack = (uint64)kalloc()) == 0) return -1;
+
+  memset((char*)&initproc->context, 0, sizeof(initproc->context));
+  initproc->context.ra = (uint64)forkret;
+  initproc->context.sp = initproc->kstack + PGSIZE;
+
+  initproc->pagetable = kernel_pagetable;
+
+  if((mem = (char*)kalloc()) == 0) return -1;
+  memset(mem, 0, PGSIZE);
+  pte = walk(initproc->pagetable, (uint64)mem, 0);
+  if(pte == 0 || (*pte & PTE_V) == 0)
+    panic("userinit: no kernel mapping");
+  *pte |= PTE_U | PTE_X;
+
+  if(mappages(initproc->pagetable, (uint64)trampoline, TRAMPOLINE, PGSIZE,
+              PTE_R | PTE_X) < 0)
+    return -1;
+
+  if(mappages(initproc->pagetable, (uint64)initproc->trapframe, TRAPFRAME,
+              PGSIZE, PTE_R | PTE_W) < 0)
+    return -1;
+  
+  //加载代码
+  memmove(mem, (char*)initcode, sizeof(initcode));
+
+  initproc->trapframe->epc = (uint64)mem;
+  initproc->trapframe->sp = (uint64)mem + PGSIZE;
+  initproc->sz = PGSIZE;
+
+  initproc->status = TASK_READY;
+  return 0;
 }
