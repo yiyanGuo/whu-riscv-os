@@ -37,7 +37,10 @@ uint64 sys_exit(void) {
    * TODO [Lab6-任务4-步骤2（可选）]：
    *   实现进程退出。简化版：打印退出信息，将进程状态设为 ZOMBIE，然后切回调度器。
    * ================================================================ */
-  panic("sys_exit: not implemented");
+  struct proc *p;
+  p = myproc();
+  p->status = TASK_ZOMBIE;
+  printf("process %d exit\n", myproc()->pid);
   return 0;
 }
 
@@ -64,4 +67,9 @@ uint64 sys_write(void) {
    * ================================================================ */
   panic("sys_write: not implemented");
   return -1;
+}
+
+uint64 sys_print0(void) {
+  printf("sys_print0 called\n");
+  return 0;
 }

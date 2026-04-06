@@ -14,6 +14,9 @@
 #include "riscv.h"
 #include "types.h"
 
+extern char trampoline[];
+extern void forkret();
+extern pagetable_t kernel_pagetable;
 /* 全局进程表和 CPU 描述符（在 proc.h 中 extern 声明）*/
 struct proc proc[NPROC];
 struct cpu cpus[NCPU];
@@ -57,6 +60,7 @@ void procinit(void) {
   struct proc *p;
   for(p = proc; p < &proc[NPROC]; p++) {
     p->status = TASK_FREE;
+    p->kstack = KSTACK((int)(p - proc));
   }
 }
 
@@ -90,10 +94,34 @@ found:
    *   3. 将进程状态设为 TASK_ALLOCATED
    * ================================================================ */
   p->pid = allocpid();
-  if((p->trapframe = kalloc()) == 0) {
+  // trapframe
+  if((p->trapframe = (struct trapframe *)kalloc()) == 0) {
     p->status = TASK_FREE;
     return 0;
   }
+  // page table
+  pagetable_t pagetable;
+  pagetable = uvmcreate();
+  if(pagetable == 0) return 0;
+  if(mappages(pagetable, (uint64)trampoline, TRAMPOLINE, PGSIZE, PTE_R | PTE_X) < 0) {
+    return 0;
+  }
+  if(mappages(pagetable, (uint64)p->trapframe, TRAPFRAME, PGSIZE, PTE_R | PTE_W) < 0) {
+    return 0;
+  }
+  p->pagetable = pagetable;
+  
+  // set context
+  memset((char*)&p->context, 0, sizeof(p->context));
+  p->context.ra = (uint64)forkret;
+  p->context.sp = p->kstack + PGSIZE;
+
+  // kstack
+  uint64 phy_kstack = (uint64)kalloc();
+  if(mappages(kernel_pagetable, (uint64)phy_kstack, p->kstack, PGSIZE, PTE_R | PTE_W) < 0) {
+    return 0;
+  }
+
   p->status = TASK_ALLOCATED;
   return p;
 }
@@ -167,7 +195,6 @@ void
 forkret(void)
 {
   usertrapret();
-
   while(1);
 }
 
@@ -185,35 +212,21 @@ int userinit(){
   pte_t *pte;
 
   if((initproc = allocproc()) == 0) return -1;
+  
 
-  if((initproc->kstack = (uint64)kalloc()) == 0) return -1;
 
-  memset((char*)&initproc->context, 0, sizeof(initproc->context));
-  initproc->context.ra = (uint64)forkret;
-  initproc->context.sp = initproc->kstack + PGSIZE;
-
-  initproc->pagetable = kernel_pagetable;
-
+  // 测试用户态代码执行
   if((mem = (char*)kalloc()) == 0) return -1;
   memset(mem, 0, PGSIZE);
-  pte = walk(initproc->pagetable, (uint64)mem, 0);
-  if(pte == 0 || (*pte & PTE_V) == 0)
-    panic("userinit: no kernel mapping");
-  *pte |= PTE_U | PTE_X;
-
-  if(mappages(initproc->pagetable, (uint64)trampoline, TRAMPOLINE, PGSIZE,
-              PTE_R | PTE_X) < 0)
+  if(mappages(initproc->pagetable, (uint64)mem, 0, PGSIZE, PTE_R | PTE_U | PTE_X) < 0 ){
     return -1;
-
-  if(mappages(initproc->pagetable, (uint64)initproc->trapframe, TRAPFRAME,
-              PGSIZE, PTE_R | PTE_W) < 0)
-    return -1;
+  }
   
   //加载代码
   memmove(mem, (char*)initcode, sizeof(initcode));
 
-  initproc->trapframe->epc = (uint64)mem;
-  initproc->trapframe->sp = (uint64)mem + PGSIZE;
+  initproc->trapframe->epc = 0;
+  initproc->trapframe->sp = PGSIZE;
   initproc->sz = PGSIZE;
 
   initproc->status = TASK_READY;

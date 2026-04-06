@@ -112,5 +112,5 @@ void *kalloc(void) {
     free_mem_list = r->next;
     memset((char *)r, 0, PGSIZE);
   }
-  return r;
+  return (void*)r;
 }

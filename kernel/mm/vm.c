@@ -15,6 +15,7 @@
 #include "defs.h"
 #include "memlayout.h"
 #include "param.h"
+#include "proc.h"
 #include "riscv.h"
 #include "types.h"
 
@@ -24,20 +25,7 @@ pagetable_t kernel_pagetable;
 /* 外部符号（由链接脚本/编译器生成，标记内核各段边界）*/
 extern char etext[];       /* 内核代码段结束地址 */
 extern char end_address[]; /* 内核数据段结束地址 */
-
-int memset(char *sa, char val, uint64 size) {
-  for(char *p = sa; p < sa + size; p++) {
-    *p = val;
-  }
-  return 0;
-}
-
-int memmove(char *dest, char *src, uint64 size) {
-  for(int i = 0; i < size; i++) {
-    dest[i] = src[i];
-  }
-  return 0;
-}
+extern char trampoline[];
 /* ================================================================
  * walk — 在三级页表中查找虚拟地址 va 对应的最终 PTE 指针
  *
@@ -190,7 +178,10 @@ void kvmininit(void) {
    * ================================================================ */
   //内核会维护一个包含所有物理页的页表而且虚拟地址等于物理地址，方便访问
   //然后用户进程的页表项指向的页表也会在内核页表中有一个页表项
-   mappages(kernel_pagetable, PGROUNDUP((uint64)etext), PGROUNDUP((uint64)etext), PHYSTOP - PGROUNDUP((uint64)etext), PTE_R | PTE_W);
+   mappages(kernel_pagetable, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+
+   // trampoline
+   mappages(kernel_pagetable, (uint64)trampoline, TRAMPOLINE, PGSIZE, PTE_R | PTE_X);
 }
 
 /* ================================================================

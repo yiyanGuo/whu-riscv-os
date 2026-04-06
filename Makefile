@@ -81,7 +81,8 @@ SRCS = \
 	kernel/trap/trampoline.S \
 	kernel/syscall/syscall.c \
 	kernel/syscall/sysproc.c \
-	user/proczero.c
+	kernel/utils/string.c \
+	user/proczero.c 
 #   ^ Lab1 基础文件，后续实验在此追加
 
 KERNEL  = kernel.elf

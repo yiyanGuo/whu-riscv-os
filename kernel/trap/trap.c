@@ -61,8 +61,6 @@ static void handle_timer_interrupt(void) {
   times++;
   if (times == 10) {
     printf("Tick\n");
-    if (myproc() != 0)
-      printf("proc: %d\n", myproc()->pid);
     times = 0;
     if (myproc() != 0 && myproc()->status == TASK_RUNNING)
       yield();
@@ -175,7 +173,6 @@ void usertrap(void) {
     p->trapframe->epc += 4;
 
     /* 分发给系统调用处理函数 */
-    printf("handle syscall\n");
     syscall();
 
   } else if (cause & 0x8000000000000000L) {

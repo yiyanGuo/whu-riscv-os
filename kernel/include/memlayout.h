@@ -42,6 +42,7 @@
 /* 内核虚拟地址空间布局（开启虚拟内存后使用，Lab3涉及） */
 #define TRAMPOLINE (MAXVA - PGSIZE)     /* 跳板页（最高虚拟页）*/
 #define TRAPFRAME (TRAMPOLINE - PGSIZE) /* 陷阱帧页 */
+#define KSTACK(p) (TRAMPOLINE - ((p) + 1) * 2 * PGSIZE) /* 每个进程的内核栈顶 */
 
 /* Sv39 虚拟地址上限 */
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))

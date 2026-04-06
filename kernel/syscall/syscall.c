@@ -15,6 +15,7 @@
 #include "types.h"
 
 /* 系统调用号常量定义 */
+#define SYS_print0 0
 #define SYS_fork 1
 #define SYS_exit 2
 #define SYS_wait 3
@@ -39,6 +40,7 @@
  * ================================================================ */
 static uint64 (*syscalls[20])(void) = {
     [SYS_getpid] = sys_getpid,
+    [SYS_print0] = sys_print0
 };
 
 /* ================================================================
@@ -57,7 +59,7 @@ void syscall(void) {
    *      将返回值存入 p->trapframe->a0（用户程序会从 a0 读取返回值）。
    *   3. 若非法，打印错误并将 p->trapframe->a0 = -1（返回错误码）。
    * ================================================================ */
-  if (num > 0 && num < NELEM(syscalls) && syscalls[num] != 0) {
+  if (num >= 0 && num < NELEM(syscalls) && syscalls[num] != 0) {
     p->trapframe->a0 = syscalls[num]();
   } else {
     printf("syscall: unknown num %d\n", num);

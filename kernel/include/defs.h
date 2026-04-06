@@ -46,7 +46,7 @@ int memmove(char *dest, char *src, uint64 size);
 void kvmininit(void);
 void kvminithart(void);
 pte_t *walk(pagetable_t pagetable, uint64 va, int alloc);
-int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
+int mappages(pagetable_t pagetable, uint64 pa, uint64 va, uint64 size,
              int perm);
 uint64 walkaddr(pagetable_t pagetable, uint64 va);
 pagetable_t uvmcreate(void);
@@ -104,7 +104,7 @@ uint64 sys_fork(void);
 uint64 sys_wait(void);
 uint64 sys_sbrk(void);
 uint64 sys_write(void);
-
+uint64 sys_print0(void);
 /* ======================================================
  * Lab7 新增：块缓冲层
  * 文件：kernel/fs/bio.c

@@ -15,17 +15,15 @@ SECTIONS
     /* *(.text.entry) 确保 entry.S 中 _entry 的代码排在最前面 */
     *(.text.entry)
     *(.text .text.*)
-    etext = .;
-  }
-
-  . = ALIGN(0x1000);
-  trampoline = .;
-  trampsec : {
+    . = ALIGN(0x1000);
+    /*trampsec单独放一个区域*/
+    _trampoline = .;
     *(trampsec)
+    . = ALIGN(0x1000);
+    ASSERT(. - _trampoline == 0x1000, "error: trampoline larger than one page");
+    PROVIDE(etext = .);
   }
-  . = ALIGN(0x1000);
   
-
   . = ALIGN(0x1000);
   .rodata : {
     *(.rodata .rodata.*)
@@ -38,11 +36,10 @@ SECTIONS
 
   . = ALIGN(0x1000);
   .bss : {
-    /* end_address 标记内核数据结束位置，kalloc 从这里开始管理空闲内存（Lab3用） */
-    end_address = .;
     *(.bss .bss.*)
   }
 
   . = ALIGN(0x1000);
+  end_address = .;
   kernel_end = .;
 }
