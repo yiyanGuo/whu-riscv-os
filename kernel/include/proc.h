@@ -113,6 +113,7 @@ struct proc {
   uint64 kstack;               /* 该进程的内核栈顶地址 */
   uint64 sz;                   /* 进程地址空间大小（字节）*/
   char name[16];               /* 进程名称（调试用）*/
+  struct proc *parent;          /* 父进程指针 */
 };
 
 /* CPU 描述结构 */

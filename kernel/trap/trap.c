@@ -181,13 +181,13 @@ void usertrap(void) {
     if (irq == 1) {
       handle_timer_interrupt();
     } else {
-      printf("usertrap: unexpected interrupt irq=%ld\n", irq);
+      printf("usertrap: unexpected interrupt irq=%x\n", irq);
       panic("usertrap");
     }
 
   } else {
     /* 用户态发生异常（如非法内存访问），直接终止该进程 */
-    printf("usertrap: unexpected scause=%ld\n", cause);
+    printf("usertrap: unexpected scause=%x\n", cause);
     /* 理想情况下应该 exit(-1) 杀死该进程，暂不实现 */
     panic("usertrap");
   }

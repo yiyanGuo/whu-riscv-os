@@ -14,6 +14,7 @@
 #include "riscv.h"
 #include "types.h"
 
+
 extern char trampoline[];
 extern void forkret();
 extern pagetable_t kernel_pagetable;
@@ -201,34 +202,54 @@ forkret(void)
 extern pagetable_t kernel_pagetable;
 extern char trampoline[];
 
-static uint8 initcode[] = {
-    0x73, 0x00, 0x00, 0x00,   // ecall
-    0x73, 0x00, 0x00, 0x00,   // ecall
-    0x6f, 0x00, 0x00, 0x00,   // j .
-};
 
 int userinit(){
   char *mem;
-  pte_t *pte;
 
   if((initproc = allocproc()) == 0) return -1;
-  
-
 
   // 测试用户态代码执行
   if((mem = (char*)kalloc()) == 0) return -1;
   memset(mem, 0, PGSIZE);
-  if(mappages(initproc->pagetable, (uint64)mem, 0, PGSIZE, PTE_R | PTE_U | PTE_X) < 0 ){
+  if(mappages(initproc->pagetable, (uint64)mem, 0, PGSIZE, PTE_R | PTE_W | PTE_U | PTE_X) < 0 ){
     return -1;
   }
   
   //加载代码
-  memmove(mem, (char*)initcode, sizeof(initcode));
+  memmove(mem, (char*)usercode_fork_test_bin, usercode_fork_test_bin_len);
 
   initproc->trapframe->epc = 0;
   initproc->trapframe->sp = PGSIZE;
   initproc->sz = PGSIZE;
 
   initproc->status = TASK_READY;
+
   return 0;
+}
+
+// fork
+int kfork() {
+  int pid;
+  struct proc *child;
+  struct proc *parent;
+  parent = myproc();
+  
+  if(parent == 0)
+    return -1;
+
+  if((child = allocproc()) == 0)
+    return -1;
+
+  if(uvmcopy(parent->pagetable, child->pagetable, parent->sz)) {
+    return -1;
+  }
+
+  child->sz = parent->sz;
+  memmove((char *)child->trapframe, (char *)parent->trapframe, sizeof(*(parent->trapframe)));
+  child->trapframe->a0 = 0; // fork返回0
+  child->parent = parent;
+  child->status = TASK_READY;
+
+  pid = child->pid;
+  return pid;
 }

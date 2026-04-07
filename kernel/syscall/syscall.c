@@ -21,6 +21,7 @@
 #define SYS_wait 3
 #define SYS_getpid 11
 #define SYS_sbrk 12
+#define SYS_yield 13
 #define SYS_write 16
 
 /* 获取定义长度的宏 */
@@ -40,7 +41,11 @@
  * ================================================================ */
 static uint64 (*syscalls[20])(void) = {
     [SYS_getpid] = sys_getpid,
-    [SYS_print0] = sys_print0
+    [SYS_exit]   = sys_exit,
+    [SYS_print0] = sys_print0,
+    [SYS_write]  = sys_write,
+    [SYS_yield]  = sys_yield,
+    [SYS_fork]   = sys_fork
 };
 
 /* ================================================================

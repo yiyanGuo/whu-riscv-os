@@ -2,7 +2,7 @@
 #ifndef PARAM_H
 #define PARAM_H
 
-#define NPROC 64                  /* 最多同时存在的进程数 */
+#define NPROC 4                  /* 最多同时存在的进程数 */
 #define NCPU 1                    /* 本实验只考虑单核 CPU */
 #define NOFILE 16                 /* 每个进程最多同时打开的文件数 */
 #define NFILE 100                 /* 整个内核最多同时打开的文件总数 */

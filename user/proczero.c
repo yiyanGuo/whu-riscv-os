@@ -1,10 +1,16 @@
-#include "defs.h"
+#include "user.h"
 
-void proczero_code(void){
+void _start(void){
+    print0();
+    while(1);
+    // int pid = getpid();
+    // for(int i = 0; i < 100000000; i++){
+    //     if(i % 10000 == 0) {
+    //         putstr("pid = ");
+    //         putint(pid);
+    //         putstr("\n");
+    //     }
+    // }
 
-    for(;;){
-        int i = 0;
-        for(int i = 0; i < 10000000; i++);
-        printf("i=%d\n", i);
-    }
+    // exit();
 }

@@ -88,6 +88,24 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
   return &pagetable[PX(0, va)];
 }
 
+uint64 walkaddr(pagetable_t pagetable, uint64 va) {
+  pte_t *pte;
+  uint64 pa;
+
+  if(va >= MAXVA) return 0;
+
+  pte = walk(pagetable, va, 0);
+  if(pte == 0)
+    return 0;
+  if((*pte & PTE_V) == 0)
+    return 0;
+  if((*pte & PTE_U) == 0)
+    return 0;
+
+  pa = PTE2PA(*pte);
+
+  return pa;
+}
 /* ================================================================
  * mappages — 建立从虚拟地址范围到物理地址范围的映射
  *
@@ -209,4 +227,37 @@ uvmcreate()
     return 0;
   memset((char*)pagetable, 0, PGSIZE);
   return pagetable;
+}
+
+void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
+  panic("uvmunmap not implement");
+}
+
+// copy页表及物理页
+int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
+  pte_t *pte;
+  uint64 pa, i;
+  uint flags;
+  char *mem;
+
+  for(i = 0; i < sz; i += PGSIZE) {
+    if((pte = walk(old, i, 0)) == 0) 
+      continue; // 若pte没有分配
+    if((*pte & PTE_V) == 0)
+      continue; // 物理页没分配
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+    if((mem = kalloc()) == 0) 
+      goto err;
+    memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(new, (uint64)mem, i, PGSIZE, flags)) {
+      kfree(mem);
+      goto err;
+    }
+  }
+  return 0;
+
+  err:
+    uvmunmap(new, 0, i / PGSIZE, 1);
+    return -1;
 }

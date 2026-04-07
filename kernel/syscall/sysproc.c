@@ -41,6 +41,7 @@ uint64 sys_exit(void) {
   p = myproc();
   p->status = TASK_ZOMBIE;
   printf("process %d exit\n", myproc()->pid);
+  swtch(&p->context, &mycpu()->context);
   return 0;
 }
 
@@ -65,8 +66,38 @@ uint64 sys_write(void) {
    *   4. 设置 p->status = TASK_ZOMBIE
    *   5. 调用 swtch 切回调度器：swtch(&p->context, &mycpu()->context);
    * ================================================================ */
-  panic("sys_write: not implemented");
-  return -1;
+  // TODO: 拷贝到内核缓冲区
+  struct proc *p;
+  int fd;
+  int count;
+  uint64 va;
+  
+  p = myproc();
+  fd = p->trapframe->a0;
+  va = p->trapframe->a1;
+  count = p->trapframe->a2;
+
+  for(int i = 0; i < count; i++) {
+    uint64 srcva = va + i;
+    uint64 pa = walkaddr(p->pagetable, srcva);
+    char c;
+
+    if(fd != 1 || pa == 0)
+      return -1;
+
+    c = *(char *)(pa + (srcva & (PGSIZE - 1)));
+    uart_putc(c);
+  }
+  return 0;
+}
+
+uint64 sys_yield(void) {
+  yield();
+  return 0;
+}
+
+uint64 sys_fork() {
+  return kfork();
 }
 
 uint64 sys_print0(void) {

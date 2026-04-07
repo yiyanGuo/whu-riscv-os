@@ -30,7 +30,7 @@ OBJCOPY = $(CROSS)objcopy
 CFLAGS = -nostdlib -fno-builtin -mcmodel=medany \
          -march=rv64gc -mabi=lp64d \
          -g -Wall -ffreestanding \
-         -I kernel/include
+         -I kernel/include -I .
 
 # ============================================================
 # TODO [Lab1-任务4]：
@@ -81,24 +81,60 @@ SRCS = \
 	kernel/trap/trampoline.S \
 	kernel/syscall/syscall.c \
 	kernel/syscall/sysproc.c \
-	kernel/utils/string.c \
-	user/proczero.c 
+	kernel/utils/string.c 
+
 #   ^ Lab1 基础文件，后续实验在此追加
 
 KERNEL  = kernel.elf
 LDSCRIPT = kernel.ld
+
+USERCC      = $(CROSS)gcc
+USEROBJCOPY = $(CROSS)objcopy
+
+USER_CFLAGS = -ffreestanding -fno-builtin \
+              -march=rv64gc -mabi=lp64 \
+              -Wall -g -I user
+
+USER_LDFLAGS = -nostdlib -T user/user.ld -Wl,-N
+
+USER_PROG = proczero
+
+USER_OBJS = user/proczero.o user/utils.o user/usys.o
+
+USER_ELF = $(USER_PROG).elf
+USER_BIN = $(USER_PROG).bin
+USER_HDR = $(USER_PROG)_bin.h
 
 # ============================================================
 # 构建目标
 # ============================================================
 all: $(KERNEL)
 
-$(KERNEL): $(SRCS) $(LDSCRIPT)
+$(KERNEL): $(SRCS) $(LDSCRIPT) 
 	$(CC) $(CFLAGS) -T $(LDSCRIPT) $(SRCS) -o $@
 	@echo "======================================"
 	@echo " 内核编译成功：$(KERNEL)"
 	@echo " 现在运行 'make run' 启动 QEMU"
 	@echo "======================================"
+
+user/%.o: user/%.c
+	$(USERCC) $(USER_CFLAGS) -c -o $@ $<
+
+user/%.o: user/%.S
+	$(USERCC) $(USER_CFLAGS) -c -o $@ $<
+
+$(USER_ELF): $(USER_OBJS) $(USER_LDSCRIPT)
+	$(USERCC) $(USER_LDFLAGS) -o $@ $(USER_OBJS)
+
+$(USER_BIN): $(USER_ELF)
+	$(USEROBJCOPY) -O binary $< $@
+
+$(USER_HDR): $(USER_BIN)
+	python3 -c 'import sys; data=open("$(USER_BIN)","rb").read(); name="$(USER_PROG)_bin"; \
+print("unsigned char %s[] = {" % name); \
+print(",".join("0x%02x" % b for b in data)); \
+print("};"); \
+print("unsigned int %s_len = %d;" % (name, len(data)))' > $@
 
 # 在 QEMU 中运行内核
 run: $(KERNEL)
@@ -129,6 +165,8 @@ debug: $(KERNEL)
 
 # 清除编译产物
 clean:
-	rm -f $(KERNEL) *.o *.d
+	rm -f $(KERNEL) *.o *.d \
+	      $(USER_ELF) $(USER_BIN) $(USER_HDR) \
+	      $(USER_OBJS)
 
 .PHONY: all run debug clean
