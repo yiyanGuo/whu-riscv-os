@@ -216,7 +216,7 @@ int userinit(){
   }
   
   //加载代码
-  memmove(mem, (char*)usercode_fork_test_bin, usercode_fork_test_bin_len);
+  memmove(mem, (char*)usercode_sys_print0_bin, usercode_sys_print0_bin_len);
 
   initproc->trapframe->epc = 0;
   initproc->trapframe->sp = PGSIZE;

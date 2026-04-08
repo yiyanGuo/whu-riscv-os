@@ -129,6 +129,7 @@ struct inode *iget(uint dev, uint inum);
 struct inode *dirlookup(struct inode *dp, char *name, uint *poff);
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n);
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n);
+uint balloc(uint dev);
 
 /* ======================================================
  * 用户态 syscall 测试机器码

@@ -63,7 +63,10 @@ void binit(void) {
    * ================================================================ */
   for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
     /* 在这里插入链表 */
-    (void)b;
+    b->next = bcache.head.next;
+    b->prev = &bcache.head;
+    bcache.head.next->prev = b;
+    bcache.head.next = b;
   }
 }
 
@@ -100,8 +103,11 @@ static struct buf *bget(uint dev, uint blockno) {
        *   3. 将 b->refcnt 设为 1（开始被使用）
        *   4. 返回 b
        * ================================================================ */
-      (void)dev;
-      (void)blockno;
+      b->dev = dev;
+      b->blockno = blockno;
+      b->valid = 0;
+      b->refcnt = 1;
+      return b;
     }
   }
   panic("bget: no buffers");
@@ -113,7 +119,7 @@ static struct buf *bget(uint dev, uint blockno) {
 struct buf *bread(uint dev, uint blockno) {
   struct buf *b;
 
-  b = bget(dev, blockno);
+  b = bget(dev, blockno); // 获取一块buffer，可能是目标数据也可能是新的buffer
 
   if (!b->valid) {
     /* 缓存未命中，需要从磁盘真正读取数据 */
@@ -122,6 +128,8 @@ struct buf *bread(uint dev, uint blockno) {
      *   调用磁盘驱动读取数据，并将 b->valid 标记为 1（数据已有效）。
      *   使用 virtio_disk_rw(b, 0)：第二个参数 0 表示读操作。
      * ================================================================ */
+    virtio_disk_rw(b, 0);
+    b->valid = 1;
   }
 
   return b;
@@ -136,7 +144,7 @@ void bwrite(struct buf *b) {
    *   调用磁盘驱动将缓冲数据写回磁盘。
    *   使用 virtio_disk_rw(b, 1)：第二个参数 1 表示写操作。
    * ================================================================ */
-  (void)b;
+  virtio_disk_rw(b, 1);
 }
 
 /* ================================================================
@@ -155,5 +163,13 @@ void brelse(struct buf *b) {
    *      摘除操作需修改 4 个指针（b的前据的next、b的后继的prev）；
    *      头插到 bcache.head 后面同样需要 4 个指针修改。
    * ================================================================ */
-  (void)b;
+  b->refcnt--;
+  if(b->refcnt == 0) {
+    b->next->prev = b->prev;
+    b->prev->next = b->next;
+    b->next = bcache.head.next;
+    b->prev = &bcache.head;
+    bcache.head.next->prev = b;
+    bcache.head.next = b;
+  }
 }

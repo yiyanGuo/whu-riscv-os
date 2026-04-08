@@ -1,0 +1,55 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug kernel (gdb-multiarch)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/kernel.elf",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb-multiarch",
+      "miDebuggerServerAddress": "127.0.0.1:1234",
+      "stopAtEntry": true,
+      "externalConsole": false,
+      "preLaunchTask": "kernel: qemu debug",
+      "postDebugTask": "kernel: stop qemu",
+      "setupCommands": [
+        {
+          "description": "Enable GDB pretty printing",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set architecture to RV64",
+          "text": "set architecture riscv:rv64",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "Attach kernel :1234 (manual QEMU)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/kernel.elf",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb-multiarch",
+      "miDebuggerServerAddress": "127.0.0.1:1234",
+      "stopAtEntry": true,
+      "externalConsole": false,
+      "setupCommands": [
+        {
+          "description": "Enable GDB pretty printing",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set architecture to RV64",
+          "text": "set architecture riscv:rv64",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}

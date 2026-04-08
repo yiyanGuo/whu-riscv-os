@@ -152,7 +152,6 @@ void usertrap(void) {
 
   /* 立即切换到内核态陷阱向量（防止处理用户陷阱时再发生用户态中断）*/
   w_stvec((uint64)sys_trap_vector);
-  // printf("in usertrap\n");
 
   uint64 cause = r_scause();
   p->trapframe->epc = r_sepc();
