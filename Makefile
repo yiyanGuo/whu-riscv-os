@@ -81,7 +81,9 @@ SRCS = \
 	kernel/trap/trampoline.S \
 	kernel/syscall/syscall.c \
 	kernel/syscall/sysproc.c \
-	kernel/utils/string.c 
+	kernel/utils/string.c \
+	kernel/mm/uvm.c \
+	kernel/utils/user_bin.c 
 
 #   ^ Lab1 基础文件，后续实验在此追加
 

@@ -127,6 +127,25 @@ found:
   return p;
 }
 
+void freeproc(struct proc *p) {
+  if(p->trapframe)
+    kfree((void*)p->trapframe);
+  p->trapframe = 0;
+  if(p->pagetable) {
+    uvmunmap(p->pagetable, TRAMPOLINE, PGSIZE, 0);
+    uvmunmap(p->pagetable, TRAPFRAME, PGSIZE, 0);
+    if(p->sz > 0)
+      uvmunmap(p->pagetable, 0, PGROUNDUP(p->sz), 1);
+  }
+
+  p->pagetable = 0;
+  p->sz = 0;
+  p->pid = 0;
+  p->parent = 0;
+  p->name[0] = 0;
+  p->status = TASK_FREE;
+}
+
 /* ================================================================
  * scheduler — 调度器主循环（永不返回！）
  *
@@ -205,6 +224,8 @@ extern char trampoline[];
 
 int userinit(){
   char *mem;
+  struct user_program *up;
+  int found;
 
   if((initproc = allocproc()) == 0) return -1;
 
@@ -215,8 +236,18 @@ int userinit(){
     return -1;
   }
   
+  found = 0;
+  for(up = user_programs; up < &user_programs[nuser_programs]; up++) {
+    if(streq(up->name, "exec_test")) {
+      found = 1;
+      break;
+    }
+  }
+  if(!found)
+    return -1;
+
   //加载代码
-  memmove(mem, (char*)usercode_sys_print0_bin, usercode_sys_print0_bin_len);
+  memmove(mem, (char*)up->func, up->size);
 
   initproc->trapframe->epc = 0;
   initproc->trapframe->sp = PGSIZE;
@@ -252,4 +283,71 @@ int kfork() {
 
   pid = child->pid;
   return pid;
+}
+
+int kwait(uint64 addr) {
+  struct proc *pp;
+  int havekids, pid;
+  struct proc *p = myproc();
+
+  // 不断遍历查找
+  for(;;) {
+    havekids = 0;
+    for(pp = proc; pp < &proc[NPROC]; pp++) {
+      if(pp->parent == p) {
+        havekids = 1;
+        if(pp->status == TASK_ZOMBIE) {
+          pid = pp->pid;
+          freeproc(pp);
+          return pid;
+        }
+      }
+    }
+    if(!havekids)
+      return -1;
+  }
+}
+
+int kexec(char *program_name) {
+  char *mem;
+  int found;
+  struct user_program *up;
+  pagetable_t pagetable;
+  struct proc *p = myproc();
+
+  if(program_name[0] == '\0')
+    return -1;
+
+  found = 0;
+  for(up = user_programs; up < &user_programs[nuser_programs]; up++) {
+    if(streq(up->name, program_name)) {
+      found = 1;
+      break;
+    }
+  }
+  if(!found)
+    return -1;
+
+
+  // 替换当前进程code
+  mem = (char*)kalloc();
+  if(mem == 0)
+    return -1;
+  memset(mem, 0, PGSIZE);
+  memmove(mem, (char*)up->func, up->size);
+
+  pagetable = p->pagetable;
+  if(pagetable && p->sz > 0)
+    uvmunmap(pagetable, 0, p->sz, 1);
+
+  if(mappages(pagetable, (uint64)mem, 0, PGSIZE, PTE_U | PTE_R | PTE_W | PTE_X)) {
+    kfree(mem);
+    return -1;
+  }
+
+  p->trapframe->epc = 0;
+  p->trapframe->sp = PGSIZE;
+  p->sz = PGSIZE;
+  
+  return 0;
 }

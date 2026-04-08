@@ -22,10 +22,86 @@
 #define SYS_getpid 11
 #define SYS_sbrk 12
 #define SYS_yield 13
+#define SYS_exec 14
 #define SYS_write 16
 
 /* 获取定义长度的宏 */
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
+
+static uint64
+argraw(int n)
+{
+  struct proc *p = myproc();
+  switch (n) {
+  case 0:
+    return p->trapframe->a0;
+  case 1:
+    return p->trapframe->a1;
+  case 2:
+    return p->trapframe->a2;
+  case 3:
+    return p->trapframe->a3;
+  case 4:
+    return p->trapframe->a4;
+  case 5:
+    return p->trapframe->a5;
+  }
+  panic("argraw");
+  return -1;
+}
+
+// Fetch the nth 32-bit system call argument.
+void
+argint(int n, int *ip)
+{
+  *ip = argraw(n);
+}
+
+// Retrieve an argument as a pointer.
+// Doesn't check for legality, since
+// copyin/copyout will do that.
+void
+argaddr(int n, uint64 *ip)
+{
+  *ip = argraw(n);
+}
+
+void
+argstr(int n, char *buf, int max){
+  uint64 va0, pa0, srcva, slice_size;
+  int got_null = 0;
+  struct proc *p = myproc();
+  argaddr(n, &srcva);
+
+  if(max <= 0)
+    return;
+
+  while(max > 0 && !got_null) {
+    va0 = PGROUNDDOWN(srcva);
+    pa0 = walkaddr(p->pagetable, va0);
+    if(pa0 == 0)
+      break;
+    slice_size = PGSIZE - (srcva - va0);
+    if(slice_size > max)
+      slice_size = max;
+    
+    char *p = (char*)(pa0 + (srcva - va0));
+    while(slice_size--) {
+      *buf = *p;
+      if(*p == '\0') {
+        got_null = 1;
+        break;
+      }
+      buf++;
+      p++;
+      max--;
+    }
+    srcva = va0 + PGSIZE;
+  }
+
+  if(!got_null)
+    *buf = '\0';
+}
 
 /* ================================================================
  * TODO [Lab6-任务3-步骤1]：
@@ -45,7 +121,9 @@ static uint64 (*syscalls[20])(void) = {
     [SYS_print0] = sys_print0,
     [SYS_write]  = sys_write,
     [SYS_yield]  = sys_yield,
-    [SYS_fork]   = sys_fork
+    [SYS_fork]   = sys_fork,
+    [SYS_wait]   = sys_wait,
+    [SYS_exec]   = sys_exec
 };
 
 /* ================================================================

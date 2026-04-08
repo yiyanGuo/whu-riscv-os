@@ -16,4 +16,5 @@
 #define FSSIZE 1000               /* 文件系统大小（块数） */
 #define MAXPATH 128               /* 文件路径字符串最大长度 */
 
+#define MAXNAME 16
 #endif /* PARAM_H */

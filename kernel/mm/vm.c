@@ -217,47 +217,25 @@ void kvminithart(void) {
   sfence_vma();
 }
 
-//创建用户进程页表
-pagetable_t
-uvmcreate()
+
+
+
+// 统一回收释放内存占用，前提是将所有“叶子页表项”都提前释放干净
+void
+freewalk(pagetable_t pagetable)
 {
-  pagetable_t pagetable;
-  pagetable = (pagetable_t) kalloc();
-  if(pagetable == 0)
-    return 0;
-  memset((char*)pagetable, 0, PGSIZE);
-  return pagetable;
-}
-
-void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
-  panic("uvmunmap not implement");
-}
-
-// copy页表及物理页
-int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
-  pte_t *pte;
-  uint64 pa, i;
-  uint flags;
-  char *mem;
-
-  for(i = 0; i < sz; i += PGSIZE) {
-    if((pte = walk(old, i, 0)) == 0) 
-      continue; // 若pte没有分配
-    if((*pte & PTE_V) == 0)
-      continue; // 物理页没分配
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0) 
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, (uint64)mem, i, PGSIZE, flags)) {
-      kfree(mem);
-      goto err;
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      freewalk((pagetable_t)child);
+      pagetable[i] = 0;
+    } else if(pte & PTE_V){
+      panic("freewalk: leaf");
     }
   }
-  return 0;
-
-  err:
-    uvmunmap(new, 0, i / PGSIZE, 1);
-    return -1;
+  kfree((void*)pagetable);
 }
+

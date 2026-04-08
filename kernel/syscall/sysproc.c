@@ -100,7 +100,20 @@ uint64 sys_fork() {
   return kfork();
 }
 
+uint64 sys_wait() {
+  uint64 p;
+  argaddr(0, &p);
+  return kwait(p);
+}
+
+uint64 sys_exec() {
+  char program_name[MAXNAME];
+  argstr(0, program_name, MAXNAME);
+  return kexec(program_name);
+}
 uint64 sys_print0(void) {
   printf("sys_print0 called\n");
   return 0;
 }
+
+
