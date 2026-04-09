@@ -81,6 +81,9 @@ SRCS = \
 	kernel/trap/trampoline.S \
 	kernel/syscall/syscall.c \
 	kernel/syscall/sysproc.c \
+	kernel/syscall/sysfile.c \
+	kernel/fs/file.c \
+	kernel/fs/pipe.c \
 	kernel/utils/string.c \
 	kernel/mm/uvm.c \
 	kernel/utils/user_bin.c 

@@ -23,6 +23,7 @@
 #define SYS_sbrk 12
 #define SYS_yield 13
 #define SYS_exec 14
+#define SYS_pipe 15
 #define SYS_write 16
 
 /* 获取定义长度的宏 */
@@ -123,7 +124,8 @@ static uint64 (*syscalls[20])(void) = {
     [SYS_yield]  = sys_yield,
     [SYS_fork]   = sys_fork,
     [SYS_wait]   = sys_wait,
-    [SYS_exec]   = sys_exec
+    [SYS_exec]   = sys_exec,
+    [SYS_pipe]   = sys_pipe
 };
 
 /* ================================================================

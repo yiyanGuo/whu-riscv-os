@@ -14,10 +14,12 @@ struct trapframe;
 struct buf;
 struct inode;
 struct dirent;
+struct file;
 
 
 int strlen(const char *str);
 int streq(const char *str1, const char *str2);
+
 /* ======================================================
  * Lab1 新增：uart 串口驱动
  * 文件：kernel/driver/uart.c
@@ -55,7 +57,9 @@ uint64 walkaddr(pagetable_t pagetable, uint64 va);
 pagetable_t uvmcreate(void);
 int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz);
 void uvmunmap(pagetable_t pagetable, uint64 va, uint64 sz, int do_free);
-
+int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len);
+int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
+int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max);
 /* ======================================================
  * Lab4 新增：启动初始化
  * 文件：kernel/boot/start.c
@@ -116,6 +120,7 @@ uint64 sys_sbrk(void);
 uint64 sys_write(void);
 uint64 sys_yield(void);
 uint64 sys_exec(void);
+uint64 sys_pipe(void);
 
 uint64 sys_print0(void);
 /* ======================================================
@@ -137,8 +142,10 @@ struct inode *dirlookup(struct inode *dp, char *name, uint *poff);
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n);
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n);
 uint balloc(uint dev);
-
-
+int pipealloc(struct file **f0, struct file **f1);
+int fdalloc(struct file *f);
+struct file* filealloc(void);
+void fileclose(struct file *f);
 
 struct user_program {
     const char *name;

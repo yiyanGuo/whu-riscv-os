@@ -10,6 +10,7 @@
 
 #include "param.h"
 #include "types.h"
+#include "file.h"
 
 /* ================================================================
  * 进程状态枚举
@@ -114,6 +115,8 @@ struct proc {
   uint64 sz;                   /* 进程地址空间大小（字节）*/
   char name[16];               /* 进程名称（调试用）*/
   struct proc *parent;          /* 父进程指针 */
+
+  struct file *ofile[NOFILE];    /* 该进程打开的文件（file.h 中 NOFILE=16）*/
 };
 
 /* CPU 描述结构 */

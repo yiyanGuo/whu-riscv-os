@@ -15,6 +15,7 @@
 #include "types.h"
 
 
+
 extern char trampoline[];
 extern void forkret();
 extern pagetable_t kernel_pagetable;
@@ -238,7 +239,7 @@ int userinit(){
   
   found = 0;
   for(up = user_programs; up < &user_programs[nuser_programs]; up++) {
-    if(streq(up->name, "exec_test")) {
+    if(streq(up->name, "pipe_test")) {
       found = 1;
       break;
     }

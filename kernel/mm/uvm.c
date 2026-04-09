@@ -1,6 +1,7 @@
 #include "defs.h"
 #include "memlayout.h"
 #include "riscv.h"
+#include "types.h"
 
 //创建用户进程页表
 pagetable_t
@@ -70,3 +71,4 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 sz, int do_free)
     *pte = 0;
   }
 }
+
