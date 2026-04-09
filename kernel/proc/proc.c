@@ -9,6 +9,7 @@
 
 #include "proc.h"
 #include "defs.h"
+#include "file.h"
 #include "memlayout.h"
 #include "param.h"
 #include "riscv.h"
@@ -79,6 +80,7 @@ void procinit(void) {
  * ================================================================ */
 struct proc *allocproc(void) {
   struct proc *p;
+  struct file *f;
 
   /* 在进程表中寻找一个 TASK_FREE 的槽位 */
   for (p = proc; p < &proc[NPROC]; p++) {
@@ -123,6 +125,12 @@ found:
   if(mappages(kernel_pagetable, (uint64)phy_kstack, p->kstack, PGSIZE, PTE_R | PTE_W) < 0) {
     return 0;
   }
+  
+  // TODO:fd 1 
+  f = filealloc();
+  f->type = FD_CONSOLE;
+  f->writable = 1;
+  p->ofile[1] = f;
 
   p->status = TASK_ALLOCATED;
   return p;
@@ -261,9 +269,10 @@ int userinit(){
 
 // fork
 int kfork() {
-  int pid;
+  int pid, i;
   struct proc *child;
   struct proc *parent;
+  struct file *f;
   parent = myproc();
   
   if(parent == 0)
@@ -281,7 +290,15 @@ int kfork() {
   child->trapframe->a0 = 0; // fork返回0
   child->parent = parent;
   child->status = TASK_READY;
-
+  
+  // copy ofile
+  for(i = 0; i < NOFILE; i++) {
+    f = parent->ofile[i];
+    if(f && f->ref) {
+      f->ref++;
+      child->ofile[i] = f;
+    }
+  }
   pid = child->pid;
   return pid;
 }

@@ -12,7 +12,7 @@ struct pipe {
 };
 
 struct file {
-    enum {FD_NONE, FD_PIPE, FD_INODE} type;
+    enum {FD_NONE, FD_PIPE, FD_INODE, FD_CONSOLE} type;
     int ref; // 引用计数
     int readable; // 是否可读
     int writable; // 是否可写

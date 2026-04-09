@@ -15,6 +15,7 @@ struct buf;
 struct inode;
 struct dirent;
 struct file;
+struct pipe;
 
 
 int strlen(const char *str);
@@ -121,6 +122,7 @@ uint64 sys_write(void);
 uint64 sys_yield(void);
 uint64 sys_exec(void);
 uint64 sys_pipe(void);
+uint64 sys_read(void);
 
 uint64 sys_print0(void);
 /* ======================================================
@@ -146,7 +148,10 @@ int pipealloc(struct file **f0, struct file **f1);
 int fdalloc(struct file *f);
 struct file* filealloc(void);
 void fileclose(struct file *f);
-
+int filewrite(int fd, uint64 src, int len);
+int fileread(int fd, uint64 dst, int len);
+int pipewrite(struct pipe *pi, uint64 src, int n);
+int piperead(struct pipe *pi, uint64 dst, int n);
 struct user_program {
     const char *name;
     uint64 func;

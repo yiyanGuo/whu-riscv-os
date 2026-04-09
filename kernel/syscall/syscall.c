@@ -25,6 +25,7 @@
 #define SYS_exec 14
 #define SYS_pipe 15
 #define SYS_write 16
+#define SYS_read 17
 
 /* 获取定义长度的宏 */
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
@@ -125,7 +126,8 @@ static uint64 (*syscalls[20])(void) = {
     [SYS_fork]   = sys_fork,
     [SYS_wait]   = sys_wait,
     [SYS_exec]   = sys_exec,
-    [SYS_pipe]   = sys_pipe
+    [SYS_pipe]   = sys_pipe,
+    [SYS_read]   = sys_read,
 };
 
 /* ================================================================
