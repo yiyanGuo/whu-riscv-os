@@ -23,6 +23,10 @@
  */
 #define UART0_BASE 0x10000000L
 #define Reg(offset) ((volatile unsigned char *)(UART0_BASE + (offset)))
+#define RHR 0
+#define THR 0
+#define LSR 5
+#define LSR_RX_READY 0x01
 
 /* 发送一个字符到 UART（即：在终端打印一个字符）*/
 void uart_putc(char c) {
@@ -33,7 +37,7 @@ void uart_putc(char c) {
    *
    *   提示：UART 数据寄存器的偏移量是 0。
    * ================================================================ */
-  *Reg(0) = c;
+  *Reg(THR) = c;
 }
 
 /* 发送一个字符串到 UART（逐字符调用 uart_putc）*/
@@ -51,4 +55,10 @@ void uart_puts(char *s) {
     uart_putc(*s);
     s++;
   }
+}
+
+int uart_getc(void) {
+  if((*Reg(LSR) & LSR_RX_READY) == 0)
+    return -1;
+  return *Reg(RHR);
 }

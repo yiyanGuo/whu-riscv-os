@@ -32,6 +32,11 @@ CFLAGS = -nostdlib -fno-builtin -mcmodel=medany \
          -g -Wall -ffreestanding \
          -I kernel/include -I .
 
+U_CFLAGS = -nostdlib -fno-builtin -mcmodel=medany \
+           -march=rv64gc -mabi=lp64d \
+           -g -Wall -ffreestanding \
+           -I user -I .
+
 # ============================================================
 # TODO [Lab1-任务4]：
 #   随着实验进行，将新增的源文件路径添加到 SRCS 列表。
@@ -93,6 +98,13 @@ SRCS = \
 
 KERNEL  = kernel.elf
 LDSCRIPT = kernel.ld
+USER_LDSCRIPT = user/user.ld
+
+USER_PROGS = sh fork_test print0_test
+USER_ELFS = $(addprefix user/,$(addsuffix .elf,$(USER_PROGS)))
+USER_BINS = $(addprefix user/,$(addsuffix .bin,$(USER_PROGS)))
+USER_BINS_O = $(addprefix user/,$(addsuffix .bin.o,$(USER_PROGS)))
+USER_COMMON_OBJS = user/usys.o
 
 
 
@@ -102,12 +114,27 @@ LDSCRIPT = kernel.ld
 # ============================================================
 all: $(KERNEL)
 
-$(KERNEL): $(SRCS) $(LDSCRIPT) 
-	$(CC) $(CFLAGS) -T $(LDSCRIPT) $(SRCS) -o $@
+$(KERNEL): $(SRCS) $(LDSCRIPT) $(USER_BINS_O)
+	$(CC) $(CFLAGS) -T $(LDSCRIPT) $(SRCS) $(USER_BINS_O) -o $@
 	@echo "======================================"
 	@echo " 内核编译成功：$(KERNEL)"
 	@echo " 现在运行 'make run' 启动 QEMU"
 	@echo "======================================"
+
+user/%.o: user/%.c
+	$(CC) $(U_CFLAGS) -c $< -o $@
+
+user/%.o: user/%.S
+	$(CC) $(U_CFLAGS) -c $< -o $@
+
+user/%.elf: user/%.o $(USER_COMMON_OBJS) $(USER_LDSCRIPT)
+	$(LD) -T $(USER_LDSCRIPT) -o $@ user/$*.o $(USER_COMMON_OBJS)
+
+user/%.bin: user/%.elf
+	$(OBJCOPY) -O binary $< $@
+
+user/%.bin.o: user/%.bin
+	$(OBJCOPY) -I binary -O elf64-littleriscv -B riscv $< $@
 
 
 # 在 QEMU 中运行内核
@@ -140,7 +167,7 @@ debug: $(KERNEL)
 # 清除编译产物
 clean:
 	rm -f $(KERNEL) *.o *.d \
-	      $(USER_ELF) $(USER_BIN) $(USER_HDR) \
-	      $(USER_OBJS)
+	      $(USER_ELFS) $(USER_BINS) $(USER_BINS_O) \
+	      $(USER_COMMON_OBJS) $(addprefix user/,$(addsuffix .o,$(USER_PROGS)))
 
 .PHONY: all run debug clean

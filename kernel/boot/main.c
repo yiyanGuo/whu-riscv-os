@@ -35,6 +35,7 @@ void start_main() {
   /* 在这里写你的代码 */
   // clear_screen();
   // printf("in main\n");
+  consoleinit();
   kinit();
   kvmininit();
   kvminithart();

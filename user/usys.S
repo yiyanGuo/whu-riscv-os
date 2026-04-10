@@ -20,6 +20,8 @@
 #define SYS_getpid  11
 #define SYS_sbrk    12
 #define SYS_write   16
+#define SYS_exec    14
+#define SYS_read    17
 
 
 /* ================================================================
@@ -65,6 +67,25 @@ write:
     .global fork
 fork:
     li a7, SYS_fork
+    ecall
+    ret
+
+
+    .global exec
+exec:
+    li a7, SYS_exec
+    ecall
+    ret
+ 
+    .global read
+read:
+    li a7, SYS_read
+    ecall
+    ret
+
+    .global wait
+wait:
+    li a7, SYS_wait
     ecall
     ret
 

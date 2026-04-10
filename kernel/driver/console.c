@@ -4,10 +4,30 @@
  * 支持格式符：%d（有符号十进制）、%x（十六进制）、%p（指针）、%s（字符串）、%c（字符）。
  */
 
+#include "defs.h"
+#include "types.h"
 #include <stdarg.h> /* 这是编译器内置的头文件，裸机环境也可用 */
+#include "proc.h"
+#include "spinlock.h"
 
 /* 声明底层单字符输出函数（在 uart.c 中实现）*/
 extern void uart_putc(char c);
+
+struct {
+  struct spinlock lock;
+#define INPUT_BUF_SIZE 128
+  char buf[INPUT_BUF_SIZE];
+  uint r;
+  uint w;
+  uint e;
+} cons;
+
+void consoleinit() {
+  initlock(&cons.lock, "console lock");
+  cons.w = 0;
+  cons.r = 0;
+  cons.e = 0;
+}
 
 /* ================================================================
  * TODO [Lab2-任务1-步骤1]：
@@ -197,6 +217,60 @@ void clear_screen(void) {
   printf("\x1b[2J");
   printf("\x1b[H");
 }
+
+void console_intr(int c) {
+  if(c < 0)
+    return;
+
+  if(c == '\r')
+    c = '\n';
+
+  acquire(&cons.lock);
+  if(cons.e - cons.r < INPUT_BUF_SIZE) {
+    cons.buf[cons.e % INPUT_BUF_SIZE] = c;
+    cons.e++;
+    cons.w = cons.e;
+  }
+  release(&cons.lock);
+
+  uart_putc(c);
+}
+
+// 控制台读取
+int console_read(uint64 dst, int len) {
+  struct proc *p = myproc();
+  char buf[128];
+  int c;
+  int n;
+
+  if(len <= 0)
+    return 0;
+  if(len > sizeof(buf))
+    len = sizeof(buf);
+
+  n = 0;
+  while(n < len) {
+    acquire(&cons.lock);
+    if(cons.r == cons.w) {
+      release(&cons.lock);
+      continue;
+    }
+    c = cons.buf[cons.r % INPUT_BUF_SIZE];
+    cons.r++;
+    release(&cons.lock);
+
+    buf[n++] = c;
+    if(c == '\n')
+      break;
+  }
+
+  if(copyout(p->pagetable, dst, buf, n) < 0)
+    return -1;
+
+  return n;
+}
+
+
 
 /* panic — 内核致命错误处理（已提供，无需修改）
  *

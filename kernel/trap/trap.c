@@ -60,7 +60,7 @@ static void handle_timer_interrupt(void) {
   w_sip(r_sip() & ~2);
   times++;
   if (times == 10) {
-    printf("Tick\n");
+    // printf("Tick\n");
     times = 0;
     if (myproc() != 0 && myproc()->status == TASK_RUNNING)
       yield();
@@ -106,8 +106,8 @@ void sys_trap_handler(void) {
         while ((*(uint8 *)(UART0 + 5) & 1) !=
                0) // 读取 LSR 寄存器判断是否有数据
         {
-          char c = *(uint8 *)(UART0 + 0); // 读取 RHR 寄存器拿到字符
-          *(uint8 *)(UART0 + 0) = c;      // 写入 THR 寄存器回显
+          int c = uart_getc();
+          console_intr(c);
         }
       }
 
@@ -177,11 +177,34 @@ void usertrap(void) {
   } else if (cause & 0x8000000000000000L) {
     uint64 irq = cause & 0xff;
 
-    if (irq == 1) {
+    switch (irq) {
+    case 1:
       handle_timer_interrupt();
-    } else {
-      printf("usertrap: unexpected interrupt irq=%x\n", irq);
-      panic("usertrap");
+      break;
+
+    case 9: {
+
+      int hartid = r_tp();
+      int irq = *(uint32 *)PLIC_SCLAIM(hartid); // 读 SCLAIM 寄存器获取设备号
+
+      if (irq == UART0_IRQ) {
+        while ((*(uint8 *)(UART0 + 5) & 1) !=
+               0) // 读取 LSR 寄存器判断是否有数据
+        {
+          int c = uart_getc();
+          console_intr(c);
+        }
+      }
+
+      if (irq != 0) {
+        *(uint32 *)PLIC_SCLAIM(hartid) = irq; // 将刚刚的设备号写回 SCLAIM
+      }
+      break;
+    } break;
+
+    default:
+      printf("sys_trap_handler: unknown interrupt irq=%ld\n", irq);
+      break;
     }
 
   } else {

@@ -82,8 +82,13 @@ int fileread(int fd, uint64 dst, int len) {
   if(fd < 0 || fd >= NOFILE || (f = p->ofile[fd]) == 0)
     return -1;
   // 根据file类型分发
+  if(f->readable == 0) {
+    return -1;
+  }
   if(f->type == FD_PIPE){
     ret = piperead(f->pipe, dst, len);
+  } else if(f->type == FD_CONSOLE) {
+    ret = console_read(dst, len);
   } else {
 
   }

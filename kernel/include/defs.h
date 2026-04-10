@@ -26,8 +26,10 @@ int streq(const char *str1, const char *str2);
  * Lab1 新增：uart 串口驱动
  * 文件：kernel/driver/uart.c
  * ====================================================== */
+
 void uart_putc(char c);
 void uart_puts(char *s);
+int  uart_getc(void);
 
 /* ======================================================
  * Lab2 新增：内核 printf
@@ -36,6 +38,9 @@ void uart_puts(char *s);
 void printf(char *fmt, ...);
 void clear_screen(void);
 void panic(char *msg) __attribute__((noreturn));
+void consoleinit(void);
+int console_read(uint64 dst, int len);
+void console_intr(int c);
 
 /* ======================================================
  * Lab3 新增：物理内存分配器
@@ -56,6 +61,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc);
 int mappages(pagetable_t pagetable, uint64 pa, uint64 va, uint64 size,
              int perm);
 uint64 walkaddr(pagetable_t pagetable, uint64 va);
+void freewalk(pagetable_t pagetable);
 pagetable_t uvmcreate(void);
 int uvmcopy(pagetable_t old, pagetable_t new_p, uint64 sz);
 void uvmunmap(pagetable_t pagetable, uint64 va, uint64 sz, int do_free);

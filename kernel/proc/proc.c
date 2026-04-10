@@ -149,11 +149,16 @@ found:
     return 0;
   }
   
-  // TODO:fd 1 
+  // TODO:fd 1 fd 0 
   f = filealloc();
   f->type = FD_CONSOLE;
   f->writable = 1;
   p->ofile[1] = f;
+
+  f = filealloc();
+  f->type = FD_CONSOLE;
+  f->readable = 1;
+  p->ofile[0] = f;
 
   p->status = TASK_ALLOCATED;
   // release(&p->lock);
@@ -169,7 +174,9 @@ void freeproc(struct proc *p) {
     uvmunmap(p->pagetable, TRAPFRAME, PGSIZE, 0);
     if(p->sz > 0)
       uvmunmap(p->pagetable, 0, PGROUNDUP(p->sz), 1);
+    freewalk(p->pagetable);
   }
+  uvmunmap(kernel_pagetable, p->kstack, PGSIZE, 1);
 
   p->pagetable = 0;
   p->sz = 0;
@@ -280,7 +287,7 @@ int userinit(){
   
   found = 0;
   for(up = user_programs; up < &user_programs[nuser_programs]; up++) {
-    if(streq(up->name, "pipe_test")) {
+    if(streq(up->name, "sh")) {
       found = 1;
       break;
     }
