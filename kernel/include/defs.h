@@ -16,6 +16,7 @@ struct inode;
 struct dirent;
 struct file;
 struct pipe;
+struct spinlock;
 
 
 int strlen(const char *str);
@@ -56,7 +57,7 @@ int mappages(pagetable_t pagetable, uint64 pa, uint64 va, uint64 size,
              int perm);
 uint64 walkaddr(pagetable_t pagetable, uint64 va);
 pagetable_t uvmcreate(void);
-int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz);
+int uvmcopy(pagetable_t old, pagetable_t new_p, uint64 sz);
 void uvmunmap(pagetable_t pagetable, uint64 va, uint64 sz, int do_free);
 int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len);
 int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
@@ -99,7 +100,15 @@ int kexec(char *program_name);
  * Lab5 新增：上下文切换汇编
  * 文件：kernel/proc/swtch.S
  * ====================================================== */
-void swtch(struct context *old, struct context *new);
+void swtch(struct context *old, struct context *new_c);
+
+// spinlock
+void initlock(struct spinlock *lk, char *name);
+void acquire(struct spinlock *lk);
+void release(struct spinlock *lk);
+int holding(struct spinlock *lk);
+void push_off(void);
+void pop_off(void);
 
 /* ======================================================
  * Lab6 新增：系统调用分发

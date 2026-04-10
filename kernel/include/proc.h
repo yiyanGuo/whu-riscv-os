@@ -8,9 +8,11 @@
 #ifndef PROC_H
 #define PROC_H
 
+#include "defs.h"
 #include "param.h"
 #include "types.h"
 #include "file.h"
+#include "spinlock.h"
 
 /* ================================================================
  * 进程状态枚举
@@ -106,6 +108,8 @@ struct trapframe {
  * 进程的所有元信息都记录在这里。
  * ================================================================ */
 struct proc {
+  struct spinlock lock;
+
   enum task_status status;     /* 进程当前状态 */
   int pid;                     /* 进程 ID（从 1 开始递增分配）*/
   pagetable_t pagetable;       /* 该进程的用户页表 */
@@ -115,7 +119,9 @@ struct proc {
   uint64 sz;                   /* 进程地址空间大小（字节）*/
   char name[16];               /* 进程名称（调试用）*/
   struct proc *parent;          /* 父进程指针 */
-
+  int xstate;
+  int killed;
+  void* chan;
   struct file *ofile[NOFILE];    /* 该进程打开的文件（file.h 中 NOFILE=16）*/
 };
 

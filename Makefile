@@ -86,6 +86,7 @@ SRCS = \
 	kernel/fs/pipe.c \
 	kernel/utils/string.c \
 	kernel/mm/uvm.c \
+	kernel/proc/spinlock.c \
 	kernel/utils/user_bin.c 
 
 #   ^ Lab1 基础文件，后续实验在此追加

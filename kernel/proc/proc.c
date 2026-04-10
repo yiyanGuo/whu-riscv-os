@@ -17,6 +17,7 @@
 
 
 
+
 extern char trampoline[];
 extern void forkret();
 extern pagetable_t kernel_pagetable;
@@ -26,7 +27,7 @@ struct cpu cpus[NCPU];
 
 /* 进程 ID 计数器（每次 allocpid 返回后递增）*/
 static int nextpid = 1;
-
+struct spinlock pidlock;
 //第一个用户进程
 struct proc *initproc;
 
@@ -43,12 +44,25 @@ struct cpu *mycpu(void) {
 /* ================================================================
  * myproc — 获取当前 CPU 上正在运行的进程的 PCB 指针
  * ================================================================ */
-struct proc *myproc(void) { return mycpu()->proc; }
+struct proc *myproc(void) { 
+  push_off();
+  struct proc *p;
+  p = mycpu()->proc;
+  pop_off();
+  return p; 
+}
 
 /* ================================================================
  * allocpid — 分配一个唯一的进程 ID
  * ================================================================ */
-int allocpid(void) { return nextpid++; }
+int allocpid(void) { 
+  int pid;
+  acquire(&pidlock);
+  nextpid++;
+  pid = nextpid;
+  release(&pidlock);
+  return pid; 
+}
 
 /* ================================================================
  * procinit — 初始化进程表（内核启动时调用一次）
@@ -61,7 +75,9 @@ void procinit(void) {
    *   遍历 proc[] 数组，将每个进程的 status 置为 TASK_FREE。
    * ================================================================ */
   struct proc *p;
+  initlock(&pidlock, "pidlock");
   for(p = proc; p < &proc[NPROC]; p++) {
+    initlock(&p->lock, "plock");
     p->status = TASK_FREE;
     p->kstack = KSTACK((int)(p - proc));
   }
@@ -84,8 +100,11 @@ struct proc *allocproc(void) {
 
   /* 在进程表中寻找一个 TASK_FREE 的槽位 */
   for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
     if (p->status == TASK_FREE)
       goto found;
+    else
+      release(&p->lock);
   }
   return 0; /* 进程表已满 */
 
@@ -101,6 +120,7 @@ found:
   // trapframe
   if((p->trapframe = (struct trapframe *)kalloc()) == 0) {
     p->status = TASK_FREE;
+    release(&p->lock);
     return 0;
   }
   // page table
@@ -108,9 +128,11 @@ found:
   pagetable = uvmcreate();
   if(pagetable == 0) return 0;
   if(mappages(pagetable, (uint64)trampoline, TRAMPOLINE, PGSIZE, PTE_R | PTE_X) < 0) {
+    release(&p->lock);
     return 0;
   }
   if(mappages(pagetable, (uint64)p->trapframe, TRAPFRAME, PGSIZE, PTE_R | PTE_W) < 0) {
+    release(&p->lock);
     return 0;
   }
   p->pagetable = pagetable;
@@ -123,6 +145,7 @@ found:
   // kstack
   uint64 phy_kstack = (uint64)kalloc();
   if(mappages(kernel_pagetable, (uint64)phy_kstack, p->kstack, PGSIZE, PTE_R | PTE_W) < 0) {
+    release(&p->lock);
     return 0;
   }
   
@@ -133,6 +156,7 @@ found:
   p->ofile[1] = f;
 
   p->status = TASK_ALLOCATED;
+  // release(&p->lock);
   return p;
 }
 
@@ -179,8 +203,8 @@ void scheduler(void) {
   for (;;) {
     /* 必须打开中断！否则时钟信号无法到达，调度无法触发 */
     intr_on();
-
     for (p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
       /* ================================================================
        * TODO [Lab5-任务3]：
        *   完成调度器核心逻辑：
@@ -190,11 +214,15 @@ void scheduler(void) {
        *   4. 调用 swtch 切换到 p 的上下文：swtch(&c->context, &p->context)
        *   5. swtch 返回后（进程放弃了CPU），清零 c->proc
        * ================================================================ */
-      if(p->status != TASK_READY) continue;
+      if(p->status != TASK_READY) {
+        release(&p->lock);
+        continue;
+      }
       p->status = TASK_RUNNING;
       c->proc = p;
       swtch(&c->context, &p->context);
-      c->proc = 0;      
+      c->proc = 0;  
+      release(&p->lock);    
     }
   }
 }
@@ -214,8 +242,10 @@ void yield(void) {
    *
    *   思考：为什么是 "进程 → 调度器" 而不是 "进程A → 进程B" 直接切换？
    * ================================================================ */
+  acquire(&p->lock);
   p->status = TASK_READY;
   swtch(&p->context, &c->context);
+  release(&p->lock);
 }
 
 // A fork child's very first scheduling by scheduler()
@@ -223,6 +253,9 @@ void yield(void) {
 void
 forkret(void)
 {
+  struct proc *p = myproc();
+  release(&p->lock);
+  
   usertrapret();
   while(1);
 }
@@ -263,7 +296,7 @@ int userinit(){
   initproc->sz = PGSIZE;
 
   initproc->status = TASK_READY;
-
+  release(&initproc->lock);
   return 0;
 }
 
@@ -282,6 +315,7 @@ int kfork() {
     return -1;
 
   if(uvmcopy(parent->pagetable, child->pagetable, parent->sz)) {
+    release(&child->lock);
     return -1;
   }
 
@@ -289,8 +323,7 @@ int kfork() {
   memmove((char *)child->trapframe, (char *)parent->trapframe, sizeof(*(parent->trapframe)));
   child->trapframe->a0 = 0; // fork返回0
   child->parent = parent;
-  child->status = TASK_READY;
-  
+
   // copy ofile
   for(i = 0; i < NOFILE; i++) {
     f = parent->ofile[i];
@@ -300,6 +333,9 @@ int kfork() {
     }
   }
   pid = child->pid;
+
+  child->status = TASK_READY;  
+  release(&child->lock);
   return pid;
 }
 
@@ -312,14 +348,17 @@ int kwait(uint64 addr) {
   for(;;) {
     havekids = 0;
     for(pp = proc; pp < &proc[NPROC]; pp++) {
+      acquire(&pp->lock);
       if(pp->parent == p) {
         havekids = 1;
         if(pp->status == TASK_ZOMBIE) {
           pid = pp->pid;
           freeproc(pp);
+          release(&pp->lock);
           return pid;
         }
       }
+      release(&pp->lock);
     }
     if(!havekids)
       return -1;

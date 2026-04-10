@@ -39,6 +39,7 @@ uint64 sys_exit(void) {
    * ================================================================ */
   struct proc *p;
   p = myproc();
+  acquire(&p->lock);
   p->status = TASK_ZOMBIE;
   printf("process %d exit\n", myproc()->pid);
   swtch(&p->context, &mycpu()->context);
