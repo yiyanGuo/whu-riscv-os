@@ -2,3 +2,4 @@
 kernel.elf
 .qemu-debug.log
 .qemu-debug.pid
+*.o
