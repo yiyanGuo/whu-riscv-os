@@ -101,7 +101,7 @@ void wakeup(void *chan);
 int userinit(void);
 int kfork(void);
 int kwait(uint64);
-int kexec(char *program_name);
+int kexec(char *program_name, char **argv);
 /* ======================================================
  * Lab5 新增：上下文切换汇编
  * 文件：kernel/proc/swtch.S

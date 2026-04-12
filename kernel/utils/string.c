@@ -16,8 +16,10 @@ int memmove(char *dest, char *src, uint64 size) {
 
 int strlen(char *str) {
   int len = 0;
-  while(*str != '\0')
+  while(*str != '\0') {
     len++;
+    str++;
+  }
   return len;
 }
 

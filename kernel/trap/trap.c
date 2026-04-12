@@ -209,7 +209,8 @@ void usertrap(void) {
 
   } else {
     /* 用户态发生异常（如非法内存访问），直接终止该进程 */
-    printf("usertrap: unexpected scause=%x\n", cause);
+    printf("usertrap: unexpected scause=%x sepc=%p stval=%p\n",
+           cause, p->trapframe->epc, r_stval());
     /* 理想情况下应该 exit(-1) 杀死该进程，暂不实现 */
     panic("usertrap");
   }

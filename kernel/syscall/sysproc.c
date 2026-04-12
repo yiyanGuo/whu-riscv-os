@@ -60,17 +60,47 @@ uint64 sys_fork() {
 uint64 sys_wait() {
   uint64 p;
   argaddr(0, &p);
+  
   return kwait(p);
 }
 
 uint64 sys_exec() {
-  char program_name[MAXNAME];
-  argstr(0, program_name, MAXNAME);
-  return kexec(program_name);
+  char path[MAXPATH], *argv[MAXARG];
+  char (*argbuf)[MAXPATH];
+  int i;
+  uint64 uargv, uarg;
+
+  argbuf = (char (*)[MAXPATH])kalloc();
+  if(argbuf == 0)
+    return -1;
+
+  argaddr(1, &uargv);
+  argstr(0, path, MAXPATH);
+  memset((char*)argv, 0, sizeof(argv));
+  for(i = 0; ; i++) {
+    if(i >= MAXARG) {
+      goto bad;
+    }
+    if(copyin(myproc()->pagetable, (char *)&uarg, uargv + i * sizeof(uint64),
+              sizeof(uint64)) < 0)
+      goto bad;
+    if(uarg == 0) {
+      argv[i] = 0;
+      break;
+    }
+    if(copyinstr(myproc()->pagetable, argbuf[i], uarg, MAXPATH) < 0)
+      goto bad;
+    argv[i] = argbuf[i];
+  }
+  i = kexec(path, argv);
+  kfree((void *)argbuf);
+  return i;
+
+  bad:
+    kfree((void *)argbuf);
+    return -1;
 }
 uint64 sys_print0(void) {
   printf("sys_print0 called\n");
   return 0;
 }
-
-

@@ -218,6 +218,8 @@ void clear_screen(void) {
   printf("\x1b[H");
 }
 
+
+// 键盘中断后续流程
 void console_intr(int c) {
   if(c < 0)
     return;
@@ -225,6 +227,7 @@ void console_intr(int c) {
   if(c == '\r')
     c = '\n';
 
+  // 将字符存入buffer
   acquire(&cons.lock);
   if(cons.e - cons.r < INPUT_BUF_SIZE) {
     cons.buf[cons.e % INPUT_BUF_SIZE] = c;
@@ -233,6 +236,7 @@ void console_intr(int c) {
   }
   release(&cons.lock);
 
+  // 控制台回显
   uart_putc(c);
 }
 

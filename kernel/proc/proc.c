@@ -300,6 +300,8 @@ int userinit(){
 
   initproc->trapframe->epc = 0;
   initproc->trapframe->sp = PGSIZE;
+  initproc->trapframe->a0 = 0;
+  initproc->trapframe->a1 = 0;
   initproc->sz = PGSIZE;
 
   initproc->status = TASK_READY;
@@ -372,12 +374,15 @@ int kwait(uint64 addr) {
   }
 }
 
-int kexec(char *program_name) {
+int kexec(char *program_name, char **argv) {
   char *mem;
   int found;
+  int argc;
   struct user_program *up;
   pagetable_t pagetable;
   struct proc *p = myproc();
+  uint64 sp, uargv;
+  uint64 ustack[MAXARG + 1];
 
   if(program_name[0] == '\0')
     return -1;
@@ -390,6 +395,8 @@ int kexec(char *program_name) {
     }
   }
   if(!found)
+    return -1;
+  if(up->size > PGSIZE)
     return -1;
 
 
@@ -409,9 +416,39 @@ int kexec(char *program_name) {
     return -1;
   }
 
+  argc = 0;
+  sp = PGSIZE;
+  memset((char *)ustack, 0, sizeof(ustack));
+  if(argv) {
+    while(argv[argc]) {
+      int len;
+
+      if(argc >= MAXARG)
+        return -1;
+      len = strlen(argv[argc]) + 1;
+      sp -= len;
+      sp &= ~7L;
+      if(sp < up->size)
+        return -1;
+      if(copyout(pagetable, sp, argv[argc], len) < 0)
+        return -1;
+      ustack[argc] = sp;
+      argc++;
+    }
+  }
+  ustack[argc] = 0;
+  sp -= (argc + 1) * sizeof(uint64);
+  sp &= ~15L;
+  if(sp < up->size)
+    return -1;
+  uargv = sp;
+  if(copyout(pagetable, uargv, (char *)ustack, (argc + 1) * sizeof(uint64)) < 0)
+    return -1;
+
   p->trapframe->epc = 0;
-  p->trapframe->sp = PGSIZE;
+  p->trapframe->sp = sp;
+  p->trapframe->a1 = uargv;
   p->sz = PGSIZE;
   
-  return 0;
+  return argc;
 }

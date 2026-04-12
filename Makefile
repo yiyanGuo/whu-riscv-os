@@ -100,11 +100,11 @@ KERNEL  = kernel.elf
 LDSCRIPT = kernel.ld
 USER_LDSCRIPT = user/user.ld
 
-USER_PROGS = sh fork_test print0_test goodnight 
+USER_PROGS = sh fork_test print0_test goodnight echo
 USER_ELFS = $(addprefix user/,$(addsuffix .elf,$(USER_PROGS)))
 USER_BINS = $(addprefix user/,$(addsuffix .bin,$(USER_PROGS)))
 USER_BINS_O = $(addprefix user/,$(addsuffix .bin.o,$(USER_PROGS)))
-USER_COMMON_OBJS = user/usys.o
+USER_COMMON_OBJS = user/usys.o user/ulib.o
 
 
 
